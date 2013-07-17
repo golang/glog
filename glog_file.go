@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -55,7 +56,7 @@ func createLogDirs() {
 		if len(dir) == 0 {
 			continue
 		}
-		if dir[0] != '/' {
+		if !filepath.IsAbs(dir) {
 			dir = "/" + dir
 		}
 		logDirs = append(logDirs, dir)
