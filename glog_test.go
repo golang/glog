@@ -19,6 +19,7 @@ package glog
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -299,9 +300,7 @@ func TestLogBacktraceAt(t *testing.T) {
 		if !ok {
 			t.Fatal("could not get file:line")
 		}
-		if i := strings.LastIndex(file, "/"); i >= 0 {
-			file = file[i+1:]
-		}
+		_, file = filepath.Split(file)
 		infoLine = fmt.Sprintf("%s:%d", file, line+delta)
 		err := logging.traceLocation.Set(infoLine)
 		if err != nil {

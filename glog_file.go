@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
-	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -49,7 +49,7 @@ func createLogDirs() {
 
 var (
 	pid      = os.Getpid()
-	program  = path.Base(os.Args[0])
+	program  = filepath.Base(os.Args[0])
 	host     = "unknownhost"
 	userName = "unknownuser"
 )
@@ -107,10 +107,10 @@ func create(tag string, t time.Time) (f *os.File, filename string, err error) {
 	name, link := logName(tag, t)
 	var lastErr error
 	for _, dir := range logDirs {
-		fname := path.Join(dir, name)
+		fname := filepath.Join(dir, name)
 		f, err := os.Create(fname)
 		if err == nil {
-			symlink := path.Join(dir, link)
+			symlink := filepath.Join(dir, link)
 			os.Remove(symlink)         // ignore err
 			os.Symlink(fname, symlink) // ignore err
 			return f, fname, nil

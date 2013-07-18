@@ -42,7 +42,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -214,7 +214,7 @@ func (m *modulePat) match(file string) bool {
 	if m.literal {
 		return file == m.pattern
 	}
-	match, _ := path.Match(m.pattern, file)
+	match, _ := filepath.Match(m.pattern, file)
 	return match
 }
 
@@ -828,7 +828,7 @@ func (l *loggingT) flushAll() {
 // setV computes and remembers the V level for a given PC
 // when vmodule is enabled.
 // File pattern matching takes the basename of the file, stripped
-// of its .go suffix, and uses path.Match, which is a little more
+// of its .go suffix, and uses filepath.Match, which is a little more
 // general than the *? matching used in C++.
 // l.mu is held.
 func (l *loggingT) setV(pc uintptr) Level {
