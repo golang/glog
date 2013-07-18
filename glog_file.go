@@ -25,7 +25,6 @@ import (
 	"os"
 	"os/user"
 	"path"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -39,28 +38,13 @@ var logDirs []string
 
 // If non-empty, overrides the choice of directory in which to write logs.
 // See createLogDirs for the full list of possible destinations.
-var log_dir = flag.String("log_dir", "", "If non-empty, write log files in this directory")
+var logDir = flag.String("log_dir", "", "If non-empty, write log files in this directory")
 
 func createLogDirs() {
-	candidates := []string{
-		*log_dir,
-
-		// Explicitly-supplied temp dirs
-		os.Getenv("TMPDIR"),
-		os.Getenv("TMP"),
-
-		// If all else fails
-		"/tmp",
+	if *logDir != "" {
+		logDirs = append(logDirs, *logDir)
 	}
-	for _, dir := range candidates {
-		if len(dir) == 0 {
-			continue
-		}
-		if !filepath.IsAbs(dir) {
-			dir = "/" + dir
-		}
-		logDirs = append(logDirs, dir)
-	}
+	logDirs = append(logDirs, os.TempDir())
 }
 
 var (
