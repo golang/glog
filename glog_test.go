@@ -1,13 +1,13 @@
 // Go support for leveled logs, analogous to https://code.google.com/p/google-glog/
 //
 // Copyright 2013 Google Inc. All Rights Reserved.
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,9 +28,9 @@ import (
 // Test that shortHostname works as advertised.
 func TestShortHostname(t *testing.T) {
 	for hostname, expect := range map[string]string{
-		"":                     "",
-		"host":                 "host",
-		"host.google.com":      "host",
+		"":                "",
+		"host":            "host",
+		"host.google.com": "host",
 	} {
 		if got := shortHostname(hostname); expect != got {
 			t.Errorf("shortHostname(%q): expected %q, got %q", hostname, expect, got)
@@ -215,7 +215,7 @@ var vGlobs = map[string]bool{
 	"glog_test=2": true,
 	"glog_test=3": true, // If -vmodule sets V to 1, V(3) will succeed.
 	// These all use 2 and check the patterns. All are true.
-	"*=2":          true,
+	"*=2":           true,
 	"?l*=2":         true,
 	"????_*=2":      true,
 	"??[mno]?_*t=2": true,
