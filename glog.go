@@ -58,9 +58,10 @@
 //	-v=0
 //		Enable V-leveled logging at the specified level.
 //	-vmodule=""
-//		The syntax of the argument is a comma-separate list of pattern=N,
+//		The syntax of the argument is a comma-separated list of pattern=N,
 //		where pattern is a literal file name (minus the ".go" suffix) or
-//		"glob" pattern and N is a V level. For instance, -vmodule=gopher*=3
+//		"glob" pattern and N is a V level. For instance,
+//			-vmodule=gopher*=3
 //		sets the V level to 3 in all Go files whose names begin "gopher".
 //
 package glog
