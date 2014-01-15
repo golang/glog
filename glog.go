@@ -37,6 +37,7 @@
 //
 // By default, all log statements write to files in a temporary directory.
 // This package provides several flags that modify this behavior.
+// As a result, flag.Parse must be called before any logging is done.
 //
 //	-logtostderr=false
 //		Logs are written to standard error instead of to files.
