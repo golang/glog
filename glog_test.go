@@ -19,6 +19,7 @@ package glog
 import (
 	"bytes"
 	"fmt"
+	stdLog "log"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -88,6 +89,33 @@ func TestInfo(t *testing.T) {
 	setFlags()
 	defer logging.swap(logging.newBuffers())
 	Info("test")
+	if !contains(infoLog, "I", t) {
+		t.Errorf("Info has wrong character: %q", contents(infoLog))
+	}
+	if !contains(infoLog, "test", t) {
+		t.Error("Info failed")
+	}
+}
+
+func init() {
+	CopyStandardLogTo("INFO")
+}
+
+// Test that CopyStandardLogTo panics on bad input.
+func TestCopyStandardLogToPanic(t *testing.T) {
+	defer func() {
+		if s, ok := recover().(string); !ok || !strings.Contains(s, "LOG") {
+			t.Errorf(`CopyStandardLogTo("LOG") should have panicked: %v`, s)
+		}
+	}()
+	CopyStandardLogTo("LOG")
+}
+
+// Test that using the standard log package logs to INFO.
+func TestStandardLog(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+	stdLog.Print("test")
 	if !contains(infoLog, "I", t) {
 		t.Errorf("Info has wrong character: %q", contents(infoLog))
 	}
@@ -328,6 +356,7 @@ func TestLogBacktraceAt(t *testing.T) {
 
 func BenchmarkHeader(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		logging.putBuffer(logging.header(infoLog))
+		buf, _, _ := logging.header(infoLog)
+		logging.putBuffer(buf)
 	}
 }

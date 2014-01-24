@@ -77,6 +77,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	stdLog "log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -93,6 +94,9 @@ import (
 // the corresponding constants in C++.
 type severity int32 // sync/atomic int32
 
+// These constants identify the log levels in order of increasing severity.
+// A message written to a high-severity log file is also written to each
+// lower-severity log file.
 const (
 	infoLog severity = iota
 	warningLog
@@ -311,7 +315,7 @@ func (m *moduleSpec) Set(value string) error {
 // isLiteral reports whether the pattern is a literal string, that is, has no metacharacters
 // that require filepath.Match to be called to match the pattern.
 func isLiteral(pattern string) bool {
-	return !strings.ContainsAny(pattern, `*?[]\`)
+	return !strings.ContainsAny(pattern, `\*?[]`)
 }
 
 // traceLocation represents the setting of the -log_backtrace_at flag.
@@ -513,7 +517,7 @@ var timeNow = time.Now // Stubbed out for testing.
 
 /*
 header formats a log header as defined by the C++ implementation.
-It returns a buffer containing the formatted header.
+It returns a buffer containing the formatted header and the user's file and line number.
 
 Log lines have this form:
 	Lmmdd hh:mm:ss.uuuuuu threadid file:line] msg...
@@ -527,9 +531,7 @@ where the fields are defined as follows:
 	line             The line number
 	msg              The user-supplied message
 */
-func (l *loggingT) header(s severity) *buffer {
-	// Lmmdd hh:mm:ss.uuuuuu threadid file:line]
-	now := timeNow()
+func (l *loggingT) header(s severity) (*buffer, string, int) {
 	_, file, line, ok := runtime.Caller(3) // It's always the same number of frames to the user's call.
 	if !ok {
 		file = "???"
@@ -540,6 +542,12 @@ func (l *loggingT) header(s severity) *buffer {
 			file = file[slash+1:]
 		}
 	}
+	return l.formatHeader(s, file, line), file, line
+}
+
+// formatHeader formats a log header using the provided file name and line number.
+func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
+	now := timeNow()
 	if line < 0 {
 		line = 0 // not a real line number, but acceptable to someDigits
 	}
@@ -552,6 +560,7 @@ func (l *loggingT) header(s severity) *buffer {
 	// It's worth about 3X. Fprintf is hard.
 	_, month, day := now.Date()
 	hour, minute, second := now.Clock()
+	// Lmmdd hh:mm:ss.uuuuuu threadid file:line]
 	buf.tmp[0] = severityChar[s]
 	buf.twoDigits(1, int(month))
 	buf.twoDigits(3, day)
@@ -612,35 +621,46 @@ func (buf *buffer) someDigits(i, d int) int {
 }
 
 func (l *loggingT) println(s severity, args ...interface{}) {
-	buf := l.header(s)
+	buf, file, line := l.header(s)
 	fmt.Fprintln(buf, args...)
-	l.output(s, buf)
+	l.output(s, buf, file, line, false)
 }
 
 func (l *loggingT) print(s severity, args ...interface{}) {
-	buf := l.header(s)
+	buf, file, line := l.header(s)
 	fmt.Fprint(buf, args...)
 	if buf.Bytes()[buf.Len()-1] != '\n' {
 		buf.WriteByte('\n')
 	}
-	l.output(s, buf)
+	l.output(s, buf, file, line, false)
 }
 
 func (l *loggingT) printf(s severity, format string, args ...interface{}) {
-	buf := l.header(s)
+	buf, file, line := l.header(s)
 	fmt.Fprintf(buf, format, args...)
 	if buf.Bytes()[buf.Len()-1] != '\n' {
 		buf.WriteByte('\n')
 	}
-	l.output(s, buf)
+	l.output(s, buf, file, line, false)
+}
+
+// printWithFileLine behaves like print but uses the provided file and line number.  If
+// alsoLogToStderr is true, the log message always appears on standard error; it
+// will also appear in the log file unless --logtostderr is set.
+func (l *loggingT) printWithFileLine(s severity, file string, line int, alsoToStderr bool, args ...interface{}) {
+	buf := l.formatHeader(s, file, line)
+	fmt.Fprint(buf, args...)
+	if buf.Bytes()[buf.Len()-1] != '\n' {
+		buf.WriteByte('\n')
+	}
+	l.output(s, buf, file, line, alsoToStderr)
 }
 
 // output writes the data to the log files and releases the buffer.
-func (l *loggingT) output(s severity, buf *buffer) {
+func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoToStderr bool) {
 	l.mu.Lock()
 	if l.traceLocation.isSet() {
-		_, file, line, ok := runtime.Caller(3) // It's always the same number of frames to the user's call (same as header).
-		if ok && l.traceLocation.match(file, line) {
+		if l.traceLocation.match(file, line) {
 			buf.Write(stacks(false))
 		}
 	}
@@ -648,7 +668,7 @@ func (l *loggingT) output(s severity, buf *buffer) {
 	if l.toStderr {
 		os.Stderr.Write(data)
 	} else {
-		if l.alsoToStderr || s >= l.stderrThreshold.get() {
+		if alsoToStderr || l.alsoToStderr || s >= l.stderrThreshold.get() {
 			os.Stderr.Write(data)
 		}
 		if l.file[s] == nil {
@@ -859,6 +879,54 @@ func (l *loggingT) flushAll() {
 			file.Sync()  // ignore error
 		}
 	}
+}
+
+// CopyStandardLogTo arranges for messages written to the Go "log" package's
+// default logs to also appear in the Google logs for the named and lower
+// severities.  Subsequent changes to the standard log's default output location
+// or format may break this behavior.
+//
+// Valid names are "INFO", "WARNING", "ERROR", and "FATAL".  If the name is not
+// recognized, CopyStandardLogTo panics.
+func CopyStandardLogTo(name string) {
+	sev, ok := severityByName(name)
+	if !ok {
+		panic(fmt.Sprintf("log.CopyStandardLogTo(%q): unrecognized severity name", name))
+	}
+	// Set a log format that captures the user's file and line:
+	//   d.go:23: message
+	stdLog.SetFlags(stdLog.Lshortfile)
+	stdLog.SetOutput(logBridge(sev))
+}
+
+// logBridge provides the Write method that enables CopyStandardLogTo to connect
+// Go's standard logs to the logs provided by this package.
+type logBridge severity
+
+// Write parses the standard logging line and passes its components to the
+// logger for severity(lb).
+func (lb logBridge) Write(b []byte) (n int, err error) {
+	var (
+		file = "???"
+		line = 1
+		text string
+	)
+	// Split "d.go:23: message" into "d.go", "23", and "message".
+	if parts := bytes.SplitN(b, []byte{':'}, 3); len(parts) != 3 || len(parts[0]) < 1 || len(parts[2]) < 1 {
+		text = fmt.Sprintf("bad log format: %s", b)
+	} else {
+		file = string(parts[0])
+		text = string(parts[2][1:]) // skip leading space
+		line, err = strconv.Atoi(string(parts[1]))
+		if err != nil {
+			text = fmt.Sprintf("bad line number: %s", b)
+			line = 1
+		}
+	}
+	// printWithFileLine with alsoToStderr=true, so standard log messages
+	// always appear on standard error.
+	logging.printWithFileLine(severity(lb), file, line, true, text)
+	return len(b), nil
 }
 
 // setV computes and remembers the V level for a given PC
