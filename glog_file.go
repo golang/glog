@@ -45,6 +45,7 @@ func createLogDirs() {
 		logDirs = append(logDirs, *logDir)
 	}
 	logDirs = append(logDirs, os.TempDir())
+	os.Stderr.WriteString(fmt.Sprintf("log dirs.: %v\n", logDirs))
 }
 
 var (

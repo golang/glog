@@ -646,7 +646,9 @@ func (l *loggingT) output(s severity, buf *buffer) {
 	}
 	data := buf.Bytes()
 	if l.toStderr {
-		os.Stderr.Write(data)
+		if s >= l.stderrThreshold.get() {
+			os.Stderr.Write(data)
+		}
 	} else {
 		if l.alsoToStderr || s >= l.stderrThreshold.get() {
 			os.Stderr.Write(data)
