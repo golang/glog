@@ -406,8 +406,8 @@ func init() {
 }
 
 // Programatic Method to set logging verbosity
-func SetVerbosity( value int) {
-  logging.verbosity = Level( value)
+func SetVerbosity(value int) {
+	logging.verbosity = Level(value)
 }
 
 // Flush flushes all pending log I/O.
