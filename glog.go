@@ -405,6 +405,11 @@ func init() {
 	go logging.flushDaemon()
 }
 
+// Programatic Method to set logging verbosity
+func SetVerbosity( value int) {
+  logging.verbosity = Level( value)
+}
+
 // Flush flushes all pending log I/O.
 func Flush() {
 	logging.lockAndFlushAll()
