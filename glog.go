@@ -470,7 +470,7 @@ func (l *loggingT) setVState(verbosity Level, filter []modulePat, setFilter bool
 	// Turn verbosity off so V will not fire while we are in transition.
 	logging.verbosity.set(0)
 	// Ditto for filter length.
-	logging.filterLength = 0
+	atomic.StoreInt32(&logging.filterLength, 0)
 
 	// Set the new filters and wipe the pc->Level map if the filter has changed.
 	if setFilter {
