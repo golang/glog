@@ -571,9 +571,9 @@ func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
 	buf.tmp[11] = ':'
 	buf.twoDigits(12, second)
 	buf.tmp[14] = '.'
-	buf.nDigits(6, 15, now.Nanosecond()/1000)
+	buf.nDigits(6, 15, now.Nanosecond()/1000, '0')
 	buf.tmp[21] = ' '
-	buf.nDigits(5, 22, pid) // TODO: should be TID
+	buf.nDigits(5, 22, pid, ' ') // TODO: should be TID
 	buf.tmp[27] = ' '
 	buf.Write(buf.tmp[:28])
 	buf.WriteString(file)
@@ -596,11 +596,17 @@ func (buf *buffer) twoDigits(i, d int) {
 	buf.tmp[i] = digits[d%10]
 }
 
-// nDigits formats a zero-prefixed n-digit integer at buf.tmp[i].
-func (buf *buffer) nDigits(n, i, d int) {
-	for j := n - 1; j >= 0; j-- {
+// nDigits formats an n-digit integer at buf.tmp[i],
+// padding with pad on the left.
+// It assumes d >= 0.
+func (buf *buffer) nDigits(n, i, d int, pad byte) {
+	j := n - 1
+	for ; j >= 0 && d > 0; j-- {
 		buf.tmp[i+j] = digits[d%10]
 		d /= 10
+	}
+	for ; j >= 0; j-- {
+		buf.tmp[i+j] = pad
 	}
 }
 

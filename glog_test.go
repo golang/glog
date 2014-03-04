@@ -130,12 +130,13 @@ func TestHeader(t *testing.T) {
 	defer logging.swap(logging.newBuffers())
 	defer func(previous func() time.Time) { timeNow = previous }(timeNow)
 	timeNow = func() time.Time {
-		return time.Date(2006, 1, 2, 15, 4, 5, .678901e9, time.Local)
+		return time.Date(2006, 1, 2, 15, 4, 5, .067890e9, time.Local)
 	}
+	pid = 1234
 	Info("test")
-	var line, pid int
-	n, err := fmt.Sscanf(contents(infoLog), "I0102 15:04:05.678901 %d glog_test.go:%d] test\n", &pid, &line)
-	if n != 2 || err != nil {
+	var line int
+	n, err := fmt.Sscanf(contents(infoLog), "I0102 15:04:05.067890  1234 glog_test.go:%d] test\n", &line)
+	if n != 1 || err != nil {
 		t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(infoLog))
 	}
 }
