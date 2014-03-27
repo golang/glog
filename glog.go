@@ -20,17 +20,17 @@
 //
 // Basic examples:
 //
-//	glog.Info("Prepare to repel boarders")
+//  glog.Info("Prepare to repel boarders")
 //
-//	glog.Fatalf("Initialization failed: %s", err)
+//  glog.Fatalf("Initialization failed: %s", err)
 //
 // See the documentation for the V function for an explanation of these examples:
 //
-//	if glog.V(2) {
-//		glog.Info("Starting transaction...")
-//	}
+//  if glog.V(2) {
+//      glog.Info("Starting transaction...")
+//  }
 //
-//	glog.V(2).Infoln("Processed", nItems, "elements")
+//  glog.V(2).Infoln("Processed", nItems, "elements")
 //
 // Log output is buffered and written periodically using Flush. Programs
 // should call Flush before exiting to guarantee all log output is written.
@@ -39,44 +39,46 @@
 // This package provides several flags that modify this behavior.
 // As a result, flag.Parse must be called before any logging is done.
 //
-//	-logtostderr=false
-//		Logs are written to standard error instead of to files.
-//	-alsologtostderr=false
-//		Logs are written to standard error as well as to files.
-//	-stderrthreshold=ERROR
-//		Log events at or above this severity are logged to standard
-//		error as well as to files.
-//	-log_dir=""
-//		Log files will be written to this directory instead of the
-//		default temporary directory.
+//  -logtostderr=false
+//      Logs are written to standard error instead of to files.
+//  -alsologtostderr=false
+//      Logs are written to standard error as well as to files.
+//  -stderrthreshold=ERROR
+//      Log events at or above this severity are logged to standard
+//      error as well as to files.
+//  -log_dir=""
+//      Log files will be written to this directory instead of the
+//      default temporary directory.
 //
-//	Other flags provide aids to debugging.
+//  Other flags provide aids to debugging.
 //
-//	-log_backtrace_at=""
-//		When set to a file and line number holding a logging statement,
-//		such as
-//			-log_backtrace_at=gopherflakes.go:234
-//		a stack trace will be written to the Info log whenever execution
-//		hits that statement. (Unlike with -vmodule, the ".go" must be
-//		present.)
-//	-v=0
-//		Enable V-leveled logging at the specified level.
-//	-vmodule=""
-//		The syntax of the argument is a comma-separated list of pattern=N,
-//		where pattern is a literal file name (minus the ".go" suffix) or
-//		"glob" pattern and N is a V level. For instance,
-//			-vmodule=gopher*=3
-//		sets the V level to 3 in all Go files whose names begin "gopher".
+//  -log_backtrace_at=""
+//      When set to a file and line number holding a logging statement,
+//      such as
+//          -log_backtrace_at=gopherflakes.go:234
+//      a stack trace will be written to the Info log whenever execution
+//      hits that statement. (Unlike with -vmodule, the ".go" must be
+//      present.)
+//  -v=0
+//      Enable V-leveled logging at the specified level.
+//  -vmodule=""
+//      The syntax of the argument is a comma-separated list of pattern=N,
+//      where pattern is a literal file name (minus the ".go" suffix) or
+//      "glob" pattern and N is a V level. For instance,
+//          -vmodule=gopher*=3
+//      sets the V level to 3 in all Go files whose names begin "gopher".
 //
 package glog
 
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -392,8 +394,10 @@ type flushSyncWriter interface {
 }
 
 func init() {
-	flag.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
+	flag.BoolVar(&logging.toStderr, "logtostderr", true, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
+	flag.StringVar(&logging.logstashType, "logstashtype", "", "enable logstash logging and define the type")
+	flag.StringVar(&logging.logstashURL, "logstashurl", "172.17.42.1:5042", "logstash url and port")
 	flag.Var(&logging.verbosity, "v", "log level for V logs")
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
@@ -404,6 +408,11 @@ func init() {
 
 	logging.setVState(0, nil, false)
 	go logging.flushDaemon()
+}
+
+// Programatic Method to set logging verbosity
+func SetVerbosity(value int) {
+	logging.verbosity = Level(value)
 }
 
 // Flush flushes all pending log I/O.
@@ -418,6 +427,13 @@ type loggingT struct {
 	// compatibility. TODO: does this matter enough to fix? Seems unlikely.
 	toStderr     bool // The -logtostderr flag.
 	alsoToStderr bool // The -alsologtostderr flag.
+
+	// logstash
+	logstashType string
+	logstashURL  string
+	logstashChan chan string
+	logstashConn net.Conn
+	logstashStop chan bool
 
 	// Level flag. Handled atomically.
 	stderrThreshold severity // The -stderrthreshold flag.
@@ -516,16 +532,16 @@ header formats a log header as defined by the C++ implementation.
 It returns a buffer containing the formatted header.
 
 Log lines have this form:
-	Lmmdd hh:mm:ss.uuuuuu threadid file:line] msg...
+    Lmmdd hh:mm:ss.uuuuuu threadid file:line] msg...
 where the fields are defined as follows:
-	L                A single character, representing the log level (eg 'I' for INFO)
-	mm               The month (zero padded; ie May is '05')
-	dd               The day (zero padded)
-	hh:mm:ss.uuuuuu  Time in hours, minutes and fractional seconds
-	threadid         The space-padded thread ID as returned by GetTID()
-	file             The file name
-	line             The line number
-	msg              The user-supplied message
+    L                A single character, representing the log level (eg 'I' for INFO)
+    mm               The month (zero padded; ie May is '05')
+    dd               The day (zero padded)
+    hh:mm:ss.uuuuuu  Time in hours, minutes and fractional seconds
+    threadid         The space-padded thread ID as returned by GetTID()
+    file             The file name
+    line             The line number
+    msg              The user-supplied message
 */
 func (l *loggingT) header(s severity) *buffer {
 	// Lmmdd hh:mm:ss.uuuuuu threadid file:line]
@@ -635,6 +651,78 @@ func (l *loggingT) printf(s severity, format string, args ...interface{}) {
 	l.output(s, buf)
 }
 
+type logstashMessage struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
+// manageLogstashConnection manages the connection to the logstash server.
+func (l *loggingT) manageLogstashConnection() {
+	var err error
+	for {
+		select {
+		case _ = <-l.logstashStop:
+			return
+		default:
+			if l.logstashConn == nil {
+				fmt.Fprintln(os.Stderr, "Trying to connect to logstash server...")
+				l.logstashConn, err = net.Dial("tcp", l.logstashURL)
+				if err != nil {
+					l.logstashConn = nil
+				} else {
+					fmt.Fprintln(os.Stderr, "Connected to logstash server.")
+				}
+			}
+			time.Sleep(time.Second)
+		}
+	}
+}
+
+// handleLogstashMessages sends logs to logstash.
+func (l *loggingT) handleLogstashMessages() {
+	for {
+		select {
+		case _ = <-l.logstashStop:
+			return
+		case data := <-l.logstashChan:
+			lm := logstashMessage{}
+			lm.Type = l.logstashType
+			lm.Message = strings.TrimSpace(data)
+			packet, err := json.Marshal(lm)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Failed to marshal logstashMessage.")
+				continue
+			} else {
+				if l.logstashConn != nil {
+					_, err := fmt.Fprintln(l.logstashConn, string(packet))
+					if err != nil {
+						fmt.Fprintln(os.Stderr, "Not connected to logstash server, attempting reconnect.")
+						l.logstashConn = nil
+						continue
+					}
+				} else {
+					// There is no connection, so the log line is dropped.
+					// Might be nice to add a buffer here so that we can ship
+					// logs after the connection is up.
+				}
+			}
+		}
+	}
+}
+
+// startLogstash creates the logstash channel and kicks off the connection and message handlers.
+func (l *loggingT) startLogstash() {
+	l.logstashChan = make(chan string)
+	go l.manageLogstashConnection()
+	go l.handleLogstashMessages()
+}
+
+// stopLogstash signals the goroutines manageLogstashConnection and handleLogstashMessages to exit.
+func (l *loggingT) stopLogstash() {
+	l.logstashStop <- true
+	l.logstashStop <- true
+}
+
 // output writes the data to the log files and releases the buffer.
 func (l *loggingT) output(s severity, buf *buffer) {
 	l.mu.Lock()
@@ -645,6 +733,12 @@ func (l *loggingT) output(s severity, buf *buffer) {
 		}
 	}
 	data := buf.Bytes()
+	if l.logstashType != "" {
+		if l.logstashChan == nil {
+			l.startLogstash()
+		}
+		l.logstashChan <- string(data)
+	}
 	if l.toStderr {
 		os.Stderr.Write(data)
 	} else {
@@ -895,9 +989,9 @@ type Verbose bool
 // The returned value is a boolean of type Verbose, which implements Info, Infoln
 // and Infof. These methods will write to the Info log if called.
 // Thus, one may write either
-//	if glog.V(2) { glog.Info("log this") }
+//  if glog.V(2) { glog.Info("log this") }
 // or
-//	glog.V(2).Info("log this")
+//  glog.V(2).Info("log this")
 // The second form is shorter but the first is cheaper if logging is off because it does
 // not evaluate its arguments.
 //
