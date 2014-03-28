@@ -76,7 +76,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -430,7 +429,6 @@ type loggingT struct {
 	logstashType string
 	logstashURL  string
 	logstashChan chan string
-	logstashConn net.Conn
 	logstashStop chan bool
 
 	// Level flag. Handled atomically.
