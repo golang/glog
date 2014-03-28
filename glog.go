@@ -400,6 +400,7 @@ func init() {
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
 
+
 	// Default stderrThreshold is ERROR.
 	logging.stderrThreshold = errorLog
 
@@ -430,6 +431,7 @@ type loggingT struct {
 	logstashURL  string
 	logstashChan chan string
 	logstashStop chan bool
+	logstashOnce sync.Once
 
 	// Level flag. Handled atomically.
 	stderrThreshold severity // The -stderrthreshold flag.
@@ -658,10 +660,12 @@ func (l *loggingT) output(s severity, buf *buffer) {
 	}
 	data := buf.Bytes()
 	if l.logstashType != "" {
-		if l.logstashChan == nil {
-			l.startLogstash()
+		l.logstashOnce.Do(l.startLogstash)
+		select {
+		case l.logstashChan <- string(data):
+		default:
+			fmt.Fprintln(os.Stderr, "Logstash buffer is full.")
 		}
-		l.logstashChan <- string(data)
 	}
 	if l.toStderr {
 		os.Stderr.Write(data)

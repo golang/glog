@@ -58,9 +58,9 @@ func (l *loggingT) handleLogstashMessages() {
     }
 }
 
-// startLogstash creates the logstash channel and kicks off handleLogstashMessages.
+// StartLogstash creates the logstash channel and kicks off handleLogstashMessages.
 func (l *loggingT) startLogstash() {
-    l.logstashChan = make(chan string)
+    l.logstashChan = make(chan string, 100)
     go l.handleLogstashMessages()    
 }
 
