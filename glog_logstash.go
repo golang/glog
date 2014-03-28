@@ -21,6 +21,7 @@ func (l *loggingT) handleLogstashMessages() {
     for {
         select {
         case _ = <-l.logstashStop:
+            conn.Close()
             return
         case _ = <- ticker:
             var err error
