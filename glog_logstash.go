@@ -64,7 +64,7 @@ func (l *loggingT) startLogstash() {
     go l.handleLogstashMessages()    
 }
 
-// StopLogstash signals startLogstash to exit.
+// StopLogstash signals handleLogstashMessages to exit.
 func (l *loggingT) StopLogstash() {
     l.logstashStop <- true
 }
