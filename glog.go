@@ -391,6 +391,26 @@ type flushSyncWriter interface {
 	io.Writer
 }
 
+func OverrideVerbosityFlag(v int) {
+	logging.verbosity = v
+}
+
+func OverrideTraceLocationFlag(v bool) {
+	logging.traceLocation = v
+}
+
+func OverrideVmoduleFlag(v string) {
+	spec := &moduleSpec{}
+	spec.Set(v)
+	logging.vmodule = spec
+}
+
+func OverrideLogToStderrFlag(v bool) {
+	logging.toStderr = v
+}
+
+
+
 func init() {
 	flag.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
