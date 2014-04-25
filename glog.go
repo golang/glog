@@ -391,6 +391,7 @@ type flushSyncWriter interface {
 }
 
 func init() {
+	flag.BoolVar(&logging.color, "color", false, "log in color")
 	flag.BoolVar(&logging.toStderr, "logtostderr", true, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
 	flag.StringVar(&logging.logstashType, "logstashtype", "", "enable logstash logging and define the type")
@@ -423,6 +424,8 @@ type loggingT struct {
 	// Boolean flags. Not handled atomically because the flag.Value interface
 	// does not let us avoid the =true, and that shorthand is necessary for
 	// compatibility. TODO: does this matter enough to fix? Seems unlikely.
+	color 		bool // The -color flag.
+
 	toStderr     bool // The -logtostderr flag.
 	alsoToStderr bool // The -alsologtostderr flag.
 
@@ -667,15 +670,31 @@ func (l *loggingT) output(s severity, buf *buffer) {
 			fmt.Fprintln(os.Stderr, "Logstash buffer is full.")
 		}
 	}
+	stderrstring := string(data)
+	if l.color {
+		stderrstring = "" + stderrstring
+		switch s {
+		case fatalLog:
+			stderrstring = "\033[91m\033[1m" + stderrstring
+		case errorLog:
+			stderrstring = "\033[91m" + stderrstring
+		case warningLog:
+			stderrstring = "\033[93m" + stderrstring
+		case infoLog:
+			stderrstring = "\033[94m" + stderrstring
+		}
+		stderrstring = stderrstring + "\033[0m"
+	}
+	stderrdata := []byte(stderrstring)
 	if l.toStderr {
-		os.Stderr.Write(data)
+		os.Stderr.Write(stderrdata)
 	} else {
 		if l.alsoToStderr || s >= l.stderrThreshold.get() {
-			os.Stderr.Write(data)
+			os.Stderr.Write(stderrdata)
 		}
 		if l.file[s] == nil {
 			if err := l.createFiles(s); err != nil {
-				os.Stderr.Write(data) // Make sure the message appears somewhere.
+				os.Stderr.Write(stderrdata) // Make sure the message appears somewhere.
 				l.exit(err)
 			}
 		}
