@@ -83,8 +83,25 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
+	"unsafe"
 )
+
+// isatty returns true if f is a TTY, false otherwise.
+func isatty(f *os.File) bool {
+	switch runtime.GOOS {
+	case "darwin":
+	case "linux":
+	default:
+		return false
+	}
+	var t [2]byte
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
+		f.Fd(), syscall.TIOCGPGRP,
+		uintptr(unsafe.Pointer(&t)))
+	return errno == 0
+}
 
 // severity identifies the sort of log: info, warning etc. It also implements
 // the flag.Value interface. The -stderrthreshold flag is of type severity and
@@ -391,7 +408,6 @@ type flushSyncWriter interface {
 }
 
 func init() {
-	flag.BoolVar(&logging.color, "color", false, "log in color")
 	flag.BoolVar(&logging.toStderr, "logtostderr", true, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
 	flag.StringVar(&logging.logstashType, "logstashtype", "", "enable logstash logging and define the type")
@@ -403,6 +419,7 @@ func init() {
 
 	// Default stderrThreshold is ERROR.
 	logging.stderrThreshold = errorLog
+	logging.color = isatty(os.Stderr)
 
 	logging.setVState(0, nil, false)
 	go logging.flushDaemon()
