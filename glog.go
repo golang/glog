@@ -83,8 +83,25 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
+	"unsafe"
 )
+
+// isatty returns true if f is a TTY, false otherwise.
+func isatty(f *os.File) bool {
+	switch runtime.GOOS {
+	case "darwin":
+	case "linux":
+	default:
+		return false
+	}
+	var t [2]byte
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
+		f.Fd(), syscall.TIOCGPGRP,
+		uintptr(unsafe.Pointer(&t)))
+	return errno == 0
+}
 
 // severity identifies the sort of log: info, warning etc. It also implements
 // the flag.Value interface. The -stderrthreshold flag is of type severity and
@@ -391,7 +408,6 @@ type flushSyncWriter interface {
 }
 
 func init() {
-	flag.BoolVar(&logging.color, "color", false, "log in color")
 	flag.BoolVar(&logging.toStderr, "logtostderr", true, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
 	flag.StringVar(&logging.logstashType, "logstashtype", "", "enable logstash logging and define the type")
@@ -401,9 +417,9 @@ func init() {
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
 
-
 	// Default stderrThreshold is ERROR.
 	logging.stderrThreshold = errorLog
+	logging.color = isatty(os.Stderr)
 
 	logging.setVState(0, nil, false)
 	go logging.flushDaemon()
@@ -424,7 +440,7 @@ type loggingT struct {
 	// Boolean flags. Not handled atomically because the flag.Value interface
 	// does not let us avoid the =true, and that shorthand is necessary for
 	// compatibility. TODO: does this matter enough to fix? Seems unlikely.
-	color 		bool // The -color flag.
+	color bool // The -color flag.
 
 	toStderr     bool // The -logtostderr flag.
 	alsoToStderr bool // The -alsologtostderr flag.
@@ -679,7 +695,7 @@ func (l *loggingT) output(s severity, buf *buffer) {
 		case errorLog:
 			stderrstring = "\033[91m" + stderrstring
 		case warningLog:
-			stderrstring = "\033[93m" + stderrstring
+			stderrstring = "\033[38;5;208m" + stderrstring
 		case infoLog:
 			stderrstring = "\033[94m" + stderrstring
 		}
