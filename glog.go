@@ -401,7 +401,6 @@ func init() {
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
 
-
 	// Default stderrThreshold is ERROR.
 	logging.stderrThreshold = errorLog
 
@@ -424,7 +423,7 @@ type loggingT struct {
 	// Boolean flags. Not handled atomically because the flag.Value interface
 	// does not let us avoid the =true, and that shorthand is necessary for
 	// compatibility. TODO: does this matter enough to fix? Seems unlikely.
-	color 		bool // The -color flag.
+	color bool // The -color flag.
 
 	toStderr     bool // The -logtostderr flag.
 	alsoToStderr bool // The -alsologtostderr flag.
@@ -679,7 +678,7 @@ func (l *loggingT) output(s severity, buf *buffer) {
 		case errorLog:
 			stderrstring = "\033[91m" + stderrstring
 		case warningLog:
-			stderrstring = "\033[93m" + stderrstring
+			stderrstring = "\033[38;5;208m" + stderrstring
 		case infoLog:
 			stderrstring = "\033[94m" + stderrstring
 		}
