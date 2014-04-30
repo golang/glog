@@ -425,9 +425,43 @@ func init() {
 	go logging.flushDaemon()
 }
 
+// Programatic Method to set logging to stderr instead of file
+func SetToStderr(value bool) {
+	logging.toStderr = value
+}
+
+// Programatic Method to set logging to stderr and files
+func SetAlsoToStderr(value bool) {
+	logging.alsoToStderr = value
+}
+
+// Programatic Method to set logstash type
+func SetLogstashType(value string) {
+	logging.logstashType = value
+}
+
+// Programatic Method to set the logstash url
+func SetLogstashURL(value string) {
+	logging.logstashURL = value
+}
+
 // Programatic Method to set logging verbosity
 func SetVerbosity(value int) {
 	logging.verbosity = Level(value)
+}
+
+// Programatic Method to set stderr threshold
+func SetStderrThreshold(value string) error {
+	return logging.stderrThreshold.Set(value)
+}
+
+// Programatic Method to set vmodule
+func SetVModule(value string) error {
+	return logging.vmodule.Set(value)
+}
+
+func SetTraceLocation(value string) error {
+	return logging.traceLocation.Set(value)
 }
 
 // Flush flushes all pending log I/O.
