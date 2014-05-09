@@ -450,6 +450,11 @@ func SetVerbosity(value int) {
 	logging.verbosity = Level(value)
 }
 
+// Programatic Method to set logging verbosity
+func GetVerbosity() Level {
+	return logging.verbosity
+}
+
 // Programatic Method to set stderr threshold
 func SetStderrThreshold(value string) error {
 	return logging.stderrThreshold.Set(value)
