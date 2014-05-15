@@ -22,6 +22,7 @@ import (
 	stdLog "log"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -94,6 +95,50 @@ func TestInfo(t *testing.T) {
 	}
 	if !contains(infoLog, "test", t) {
 		t.Error("Info failed")
+	}
+}
+
+func TestInfoDepth(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+
+	f := func() { InfoDepth(1, "depth-test1") }
+
+	// The next three lines must stay together
+	_, _, wantLine, _ := runtime.Caller(0)
+	InfoDepth(0, "depth-test0")
+	f()
+
+	msgs := strings.Split(strings.TrimSuffix(contents(infoLog), "\n"), "\n")
+	if len(msgs) != 2 {
+		t.Fatalf("Got %d lines, expected 2", len(msgs))
+	}
+
+	for i, m := range msgs {
+		if !strings.HasPrefix(m, "I") {
+			t.Errorf("InfoDepth[%d] has wrong character: %q", i, m)
+		}
+		w := fmt.Sprintf("depth-test%d", i)
+		if !strings.Contains(m, w) {
+			t.Errorf("InfoDepth[%d] missing %q: %q", i, w, m)
+		}
+
+		// pull out the line number (between : and ])
+		msg := m[strings.LastIndex(m, ":")+1:]
+		x := strings.Index(msg, "]")
+		if x < 0 {
+			t.Errorf("InfoDepth[%d]: missing ']': %q", i, m)
+			continue
+		}
+		line, err := strconv.Atoi(msg[:x])
+		if err != nil {
+			t.Errorf("InfoDepth[%d]: bad line number: %q", i, m)
+			continue
+		}
+		wantLine++
+		if wantLine != line {
+			t.Errorf("InfoDepth[%d]: got line %d, want %d", i, line, wantLine)
+		}
 	}
 }
 
@@ -357,7 +402,7 @@ func TestLogBacktraceAt(t *testing.T) {
 
 func BenchmarkHeader(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		buf, _, _ := logging.header(infoLog)
+		buf, _, _ := logging.header(infoLog, 0)
 		logging.putBuffer(buf)
 	}
 }

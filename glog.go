@@ -518,6 +518,7 @@ var timeNow = time.Now // Stubbed out for testing.
 /*
 header formats a log header as defined by the C++ implementation.
 It returns a buffer containing the formatted header and the user's file and line number.
+The depth specifies how many stack frames above lives the source line to be identified in the log message.
 
 Log lines have this form:
 	Lmmdd hh:mm:ss.uuuuuu threadid file:line] msg...
@@ -531,8 +532,8 @@ where the fields are defined as follows:
 	line             The line number
 	msg              The user-supplied message
 */
-func (l *loggingT) header(s severity) (*buffer, string, int) {
-	_, file, line, ok := runtime.Caller(3) // It's always the same number of frames to the user's call.
+func (l *loggingT) header(s severity, depth int) (*buffer, string, int) {
+	_, file, line, ok := runtime.Caller(3 + depth)
 	if !ok {
 		file = "???"
 		line = 1
@@ -627,13 +628,17 @@ func (buf *buffer) someDigits(i, d int) int {
 }
 
 func (l *loggingT) println(s severity, args ...interface{}) {
-	buf, file, line := l.header(s)
+	buf, file, line := l.header(s, 0)
 	fmt.Fprintln(buf, args...)
 	l.output(s, buf, file, line, false)
 }
 
 func (l *loggingT) print(s severity, args ...interface{}) {
-	buf, file, line := l.header(s)
+	l.printDepth(s, 1, args...)
+}
+
+func (l *loggingT) printDepth(s severity, depth int, args ...interface{}) {
+	buf, file, line := l.header(s, depth)
 	fmt.Fprint(buf, args...)
 	if buf.Bytes()[buf.Len()-1] != '\n' {
 		buf.WriteByte('\n')
@@ -642,7 +647,7 @@ func (l *loggingT) print(s severity, args ...interface{}) {
 }
 
 func (l *loggingT) printf(s severity, format string, args ...interface{}) {
-	buf, file, line := l.header(s)
+	buf, file, line := l.header(s, 0)
 	fmt.Fprintf(buf, format, args...)
 	if buf.Bytes()[buf.Len()-1] != '\n' {
 		buf.WriteByte('\n')
@@ -1038,6 +1043,12 @@ func Info(args ...interface{}) {
 	logging.print(infoLog, args...)
 }
 
+// InfoDepth acts as Info but uses depth to determine which call frame to log.
+// InfoDepth(0, "msg") is the same as Info("msg").
+func InfoDepth(depth int, args ...interface{}) {
+	logging.printDepth(infoLog, depth, args...)
+}
+
 // Infoln logs to the INFO log.
 // Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
 func Infoln(args ...interface{}) {
@@ -1054,6 +1065,12 @@ func Infof(format string, args ...interface{}) {
 // Arguments are handled in the manner of fmt.Print; a newline is appended if missing.
 func Warning(args ...interface{}) {
 	logging.print(warningLog, args...)
+}
+
+// WarningDepth acts as Warning but uses depth to determine which call frame to log.
+// WarningDepth(0, "msg") is the same as Warning("msg").
+func WarningDepth(depth int, args ...interface{}) {
+	logging.printDepth(warningLog, depth, args...)
 }
 
 // Warningln logs to the WARNING and INFO logs.
@@ -1074,6 +1091,12 @@ func Error(args ...interface{}) {
 	logging.print(errorLog, args...)
 }
 
+// ErrorDepth acts as Error but uses depth to determine which call frame to log.
+// ErrorDepth(0, "msg") is the same as Error("msg").
+func ErrorDepth(depth int, args ...interface{}) {
+	logging.printDepth(errorLog, depth, args...)
+}
+
 // Errorln logs to the ERROR, WARNING, and INFO logs.
 // Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
 func Errorln(args ...interface{}) {
@@ -1091,6 +1114,12 @@ func Errorf(format string, args ...interface{}) {
 // Arguments are handled in the manner of fmt.Print; a newline is appended if missing.
 func Fatal(args ...interface{}) {
 	logging.print(fatalLog, args...)
+}
+
+// FatalDepth acts as Fatal but uses depth to determine which call frame to log.
+// FatalDepth(0, "msg") is the same as Fatal("msg").
+func FatalDepth(depth int, args ...interface{}) {
+	logging.printDepth(fatalLog, depth, args...)
 }
 
 // Fatalln logs to the FATAL, ERROR, WARNING, and INFO logs,
