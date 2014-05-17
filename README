@@ -35,7 +35,8 @@ The comment from glog.go introduces the ideas:
 	
 		glog.V(2).Infoln("Processed", nItems, "elements")
 
-        In order for the glog-specific flags to take effect, package main should resemble:
+        In order for the glog-specific flags to take effect, 
+	package main should resemble:
 
                 package main
 
