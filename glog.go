@@ -77,6 +77,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -883,6 +884,19 @@ func (sb *syncBuffer) rotateFile(now time.Time) error {
 	if sb.file != nil {
 		sb.Flush()
 		sb.file.Close()
+		if *logDirCleanup > 0 {
+			go func(name string) {
+				// setup signal handler so we can shut down this goroutine on shutdown
+				c := make(chan os.Signal, 1)
+				signal.Notify(c, os.Interrupt, os.Kill)
+				select {
+				case <-c:
+				case <-time.After(time.Second * time.Duration(*logDirCleanup)):
+					// give observers some time before this file is removed
+					os.Remove(name)
+				}
+			}(sb.file.Name())
+		}
 	}
 	var err error
 	sb.file, _, err = create(severityName[sb.sev], now)
