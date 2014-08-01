@@ -411,7 +411,7 @@ func init() {
 	flag.BoolVar(&logging.toStderr, "logtostderr", true, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
 	flag.StringVar(&logging.logstashType, "logstashtype", "", "enable logstash logging and define the type")
-	flag.StringVar(&logging.logstashURL, "logstashurl", "172.17.42.1:5042", "logstash url and port")
+	flag.StringVar(&logging.logstashURL, "logstashurl", "127.0.0.1:5042", "logstash url and port")
 	flag.Var(&logging.verbosity, "v", "log level for V logs")
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
