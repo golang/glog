@@ -180,9 +180,16 @@ func TestHeader(t *testing.T) {
 	pid = 1234
 	Info("test")
 	var line int
-	n, err := fmt.Sscanf(contents(infoLog), "I0102 15:04:05.067890  1234 glog_test.go:%d] test\n", &line)
+	format := "I0102 15:04:05.067890    1234 glog_test.go:%d] test\n"
+	n, err := fmt.Sscanf(contents(infoLog), format, &line)
 	if n != 1 || err != nil {
 		t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(infoLog))
+	}
+	// Scanf treats multiple spaces as equivalent to a single space,
+	// so check for correct space-padding also.
+	want := fmt.Sprintf(format, line)
+	if contents(infoLog) != want {
+		t.Errorf("log format error: got:\n\t%q\nwant:\t%q", contents(infoLog), want)
 	}
 }
 

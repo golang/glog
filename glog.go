@@ -574,9 +574,9 @@ func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
 	buf.tmp[14] = '.'
 	buf.nDigits(6, 15, now.Nanosecond()/1000, '0')
 	buf.tmp[21] = ' '
-	buf.nDigits(5, 22, pid, ' ') // TODO: should be TID
-	buf.tmp[27] = ' '
-	buf.Write(buf.tmp[:28])
+	buf.nDigits(7, 22, pid, ' ') // TODO: should be TID
+	buf.tmp[29] = ' '
+	buf.Write(buf.tmp[:30])
 	buf.WriteString(file)
 	buf.tmp[0] = ':'
 	n := buf.someDigits(1, line)
