@@ -1,3 +1,6 @@
+## Changes in this fork
+The default log level is not ERROR anymore, and can be specified from the command line
+
 glog
 ====
 
