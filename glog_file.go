@@ -39,6 +39,7 @@ var logDirs []string
 // If non-empty, overrides the choice of directory in which to write logs.
 // See createLogDirs for the full list of possible destinations.
 var logDir = flag.String("log_dir", "", "If non-empty, write log files in this directory")
+var logDirCleanup = flag.Int("log_cleanup", 0, "if non-zero, delete rotated log files after this many seconds")
 
 func createLogDirs() {
 	if *logDir != "" {
@@ -53,6 +54,16 @@ var (
 	host     = "unknownhost"
 	userName = "unknownuser"
 )
+
+// Programmatically set logDir value
+func SetLogDir(value string) {
+	*logDir = value
+}
+
+// Programmatically set logDirCleanup value
+func SetLogDirCleanup(seconds int) {
+	*logDirCleanup = seconds
+}
 
 func init() {
 	h, err := os.Hostname()
