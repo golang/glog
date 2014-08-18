@@ -718,7 +718,7 @@ func (l *loggingT) output(s severity, buf *buffer) {
 		}
 	}
 	data := buf.Bytes()
-	if l.logstashType != "" {
+	if l.logstashType != "" && l.logstashURL != "" {
 		l.logstashOnce.Do(l.startLogstash)
 		select {
 		case l.logstashChan <- string(data):
