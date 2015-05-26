@@ -49,6 +49,8 @@
 //	-log_dir=""
 //		Log files will be written to this directory instead of the
 //		default temporary directory.
+//  -logbufsecs=30
+//    Buffer log messages for at most this many seconds.
 //
 //	Other flags provide aids to debugging.
 //
@@ -159,6 +161,31 @@ func severityByName(s string) (severity, bool) {
 		}
 	}
 	return 0, false
+}
+
+type logFlushInterval struct {
+	value   int32
+	changes chan int32
+}
+
+func (lfi *logFlushInterval) Get() interface{} {
+	return atomic.LoadInt32(&lfi.value)
+}
+
+func (lfi *logFlushInterval) Set(value string) error {
+	v, err := strconv.Atoi(value)
+	if err != nil {
+		return err
+	}
+	if v < 0 {
+		return errors.New("must be >= 0")
+	}
+	lfi.changes <- int32(v)
+	return nil
+}
+
+func (lfi *logFlushInterval) String() string {
+	return strconv.FormatInt(int64(atomic.LoadInt32(&lfi.value)), 10)
 }
 
 // OutputStats tracks the number of output lines and bytes written.
@@ -396,8 +423,12 @@ type flushSyncWriter interface {
 }
 
 func init() {
+	logging.flushInterval.value = 30
+	logging.flushInterval.changes = make(chan int32, 1)
+
 	flag.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
+	flag.Var(&logging.flushInterval, "logbufsecs", "buffer log messages for at most this many seconds")
 	flag.Var(&logging.verbosity, "v", "log level for V logs")
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
@@ -425,6 +456,9 @@ type loggingT struct {
 
 	// Level flag. Handled atomically.
 	stderrThreshold severity // The -stderrthreshold flag.
+
+	// Log flush interval.
+	flushInterval logFlushInterval
 
 	// freeList is a list of byte buffers, maintained under freeListMu.
 	freeList *buffer
@@ -688,18 +722,28 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 				l.exit(err)
 			}
 		}
+		flush := (s != fatalLog && atomic.LoadInt32(&l.flushInterval.value) == 0)
 		switch s {
 		case fatalLog:
 			l.file[fatalLog].Write(data)
 			fallthrough
 		case errorLog:
 			l.file[errorLog].Write(data)
+			if flush {
+				l.file[errorLog].Flush()
+			}
 			fallthrough
 		case warningLog:
 			l.file[warningLog].Write(data)
+			if flush {
+				l.file[warningLog].Flush()
+			}
 			fallthrough
 		case infoLog:
 			l.file[infoLog].Write(data)
+			if flush {
+				l.file[infoLog].Flush()
+			}
 		}
 	}
 	if s == fatalLog {
@@ -872,11 +916,19 @@ func (l *loggingT) createFiles(sev severity) error {
 	return nil
 }
 
-const flushInterval = 30 * time.Second
-
 // flushDaemon periodically flushes the log file buffers.
 func (l *loggingT) flushDaemon() {
-	for _ = range time.NewTicker(flushInterval).C {
+	for {
+		intervalSeconds := atomic.LoadInt32(&l.flushInterval.value)
+		if intervalSeconds <= 0 {
+			intervalSeconds = 2
+		}
+		flushInterval := time.Duration(intervalSeconds) * time.Second
+		select {
+		case newInterval := <-l.flushInterval.changes:
+			atomic.StoreInt32(&l.flushInterval.value, newInterval)
+		case <-time.After(flushInterval):
+		}
 		l.lockAndFlushAll()
 	}
 }
