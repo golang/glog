@@ -43,6 +43,10 @@
 //		Logs are written to standard error instead of to files.
 //	-alsologtostderr=false
 //		Logs are written to standard error as well as to files.
+//  -stderrtostdout=false
+//    Logs are written to stdout instead of stderr. Use in combination with
+//    -logtostderr or -alsologtostderr. Stack traces for fatal logs,
+//    or glog errors will still be written to stderr though.
 //	-stderrthreshold=ERROR
 //		Log events at or above this severity are logged to standard
 //		error as well as to files.
@@ -398,6 +402,7 @@ type flushSyncWriter interface {
 func init() {
 	flag.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
+	flag.BoolVar(&logging.redirectStderrToStdout, "stderrtostdout", false, "log to stdout instead of stderr")
 	flag.Var(&logging.verbosity, "vlevel", "log verbosity level for V logs")
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
@@ -420,8 +425,9 @@ type loggingT struct {
 	// Boolean flags. Not handled atomically because the flag.Value interface
 	// does not let us avoid the =true, and that shorthand is necessary for
 	// compatibility. TODO: does this matter enough to fix? Seems unlikely.
-	toStderr     bool // The -logtostderr flag.
-	alsoToStderr bool // The -alsologtostderr flag.
+	toStderr               bool // The -logtostderr flag.
+	alsoToStderr           bool // The -alsologtostderr flag.
+	redirectStderrToStdout bool // The -stderrtostdout flag.
 
 	// Level flag. Handled atomically.
 	stderrThreshold severity // The -stderrthreshold flag.
@@ -680,14 +686,27 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 		os.Stderr.Write([]byte("ERROR: logging before flag.Parse: "))
 		os.Stderr.Write(data)
 	} else if l.toStderr {
-		os.Stderr.Write(data)
+		if l.redirectStderrToStdout {
+			os.Stdout.Write(data)
+		} else {
+			os.Stderr.Write(data)
+		}
 	} else {
 		if alsoToStderr || l.alsoToStderr || s >= l.stderrThreshold.get() {
-			os.Stderr.Write(data)
+			if l.redirectStderrToStdout {
+				os.Stdout.Write(data)
+			} else {
+				os.Stderr.Write(data)
+			}
 		}
 		if l.file[s] == nil {
 			if err := l.createFiles(s); err != nil {
-				os.Stderr.Write(data) // Make sure the message appears somewhere.
+				// Make sure the message appears somewhere.
+				if l.redirectStderrToStdout {
+					os.Stdout.Write(data)
+				} else {
+					os.Stderr.Write(data)
+				}
 				l.exit(err)
 			}
 		}
