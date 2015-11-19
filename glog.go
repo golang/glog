@@ -416,6 +416,10 @@ func init() {
 
 	logging.setVState(0, nil, false)
 
+	if wd, err := os.Getwd(); err == nil {
+		wDir = wd + "/"
+	}
+
 	// at this time flushInterval defaults to flag default. as soon as flags are parsed
 	// though and the initial flushInteral passes by, the actual flushInterval kicks in.
 	go logging.flushDaemon()
@@ -527,6 +531,8 @@ func (l *loggingT) putBuffer(b *buffer) {
 
 var timeNow = time.Now // Stubbed out for testing.
 
+var wDir string
+
 /*
 header formats a log header as defined by the C++ implementation.
 It returns a buffer containing the formatted header and the user's file and line number.
@@ -550,10 +556,7 @@ func (l *loggingT) header(s severity, depth int) (*buffer, string, int) {
 		file = "???"
 		line = 1
 	} else {
-		slash := strings.LastIndex(file, "/")
-		if slash >= 0 {
-			file = file[slash+1:]
-		}
+		file = strings.Replace(file, wDir, "", 1)
 	}
 	return l.formatHeader(s, file, line), file, line
 }
