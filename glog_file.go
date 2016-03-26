@@ -41,6 +41,12 @@ var logDirs []string
 var logDir = flag.String("log_dir", "", "If non-empty, write log files in this directory")
 
 func createLogDirs() {
+	//make sure it do not log to temp where log_dir is relative dir
+	if absPath,err := filepath.Abs(*logDir); err == nil {
+		*logDir = absPath
+	} else {
+		fmt.Printf("log: can not find absolute path:%s\n",*logDir)
+	}
 	if *logDir != "" {
 		logDirs = append(logDirs, *logDir)
 	}
