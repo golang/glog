@@ -57,7 +57,7 @@ var (
 func init() {
 	h, err := os.Hostname()
 	if err == nil {
-		host = shortHostname(h)
+		host = h
 	}
 
 	current, err := user.Current()
