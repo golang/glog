@@ -347,6 +347,9 @@ func (t *traceLocation) String() string {
 	// Lock because the type is not atomic. TODO: clean this up.
 	logging.mu.Lock()
 	defer logging.mu.Unlock()
+	if t.file == "" && t.line == 0 {
+		return ""
+	}
 	return fmt.Sprintf("%s:%d", t.file, t.line)
 }
 
@@ -363,8 +366,11 @@ var errTraceSyntax = errors.New("syntax error: expect file.go:234")
 func (t *traceLocation) Set(value string) error {
 	if value == "" {
 		// Unset.
+		logging.mu.Lock()
+		defer logging.mu.Unlock()
 		t.line = 0
 		t.file = ""
+		return nil
 	}
 	fields := strings.Split(value, ":")
 	if len(fields) != 2 {
@@ -379,7 +385,7 @@ func (t *traceLocation) Set(value string) error {
 		return errTraceSyntax
 	}
 	if v <= 0 {
-		return errors.New("negative or zero value for level")
+		return errors.New("negative or zero value for line")
 	}
 	logging.mu.Lock()
 	defer logging.mu.Unlock()

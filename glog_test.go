@@ -407,6 +407,31 @@ func TestLogBacktraceAt(t *testing.T) {
 	}
 }
 
+func TestTraceLocationGetSet(t *testing.T) {
+	setFlags()
+
+	err := logging.traceLocation.Set("")
+	if err != nil {
+		t.Fatal("can not set empty tracelocation" + err.Error())
+	}
+
+	empty := logging.traceLocation.String()
+	if empty != "" {
+		t.Fatal("unset tracelocation is not empty")
+	}
+
+	somewhere := "somewhere.go:123"
+	err = logging.traceLocation.Set(somewhere)
+	if err != nil {
+		t.Fatal("can not set a tracelocation")
+	}
+
+	got := logging.traceLocation.String()
+	if got != somewhere {
+		t.Fatal("unexpected tracelocation: " + got)
+	}
+}
+
 func BenchmarkHeader(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf, _, _ := logging.header(infoLog, 0)
