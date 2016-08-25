@@ -45,11 +45,15 @@ func framesToCaller() int {
 }
 
 func (l glogger) Info(args ...interface{}) {
-	glog.InfoDepth(framesToCaller(), prepend(l.prefix, args)...)
+	if l.Enabled() {
+		glog.InfoDepth(framesToCaller(), prepend(l.prefix, args)...)
+	}
 }
 
 func (l glogger) Infof(format string, args ...interface{}) {
-	glog.InfoDepth(framesToCaller(), fmt.Sprintf("%s"+format, prepend(l.prefix, args)...))
+	if l.Enabled() {
+		glog.InfoDepth(framesToCaller(), fmt.Sprintf("%s"+format, prepend(l.prefix, args)...))
+	}
 }
 
 func (l glogger) Enabled() bool {
