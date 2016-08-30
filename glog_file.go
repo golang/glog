@@ -122,3 +122,8 @@ func create(tag string, t time.Time) (f *os.File, filename string, err error) {
 	}
 	return nil, "", fmt.Errorf("log: cannot create log: %v", lastErr)
 }
+
+// GetLogDir returns log_dir flag value
+func GetLogDir() string {
+	return *logDir
+}
