@@ -18,12 +18,14 @@ package glog
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	stdLog "log"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -44,9 +46,11 @@ func TestShortHostname(t *testing.T) {
 // flushBuffer wraps a bytes.Buffer to satisfy flushSyncWriter.
 type flushBuffer struct {
 	bytes.Buffer
+	numFlushes int32
 }
 
 func (f *flushBuffer) Flush() error {
+	atomic.AddInt32(&f.numFlushes, 1)
 	return nil
 }
 
@@ -404,6 +408,54 @@ func TestLogBacktraceAt(t *testing.T) {
 		// We could be more precise but that would require knowing the details
 		// of the traceback format, which may not be dependable.
 		t.Fatal("got no trace back; log is ", contents(infoLog))
+	}
+}
+
+func getNumFlushes() (int32, int32, int32) {
+	return atomic.LoadInt32(&logging.file[infoLog].(*flushBuffer).numFlushes),
+		atomic.LoadInt32(&logging.file[warningLog].(*flushBuffer).numFlushes),
+		atomic.LoadInt32(&logging.file[errorLog].(*flushBuffer).numFlushes)
+}
+
+func TestLogFlushing(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+	if err := flag.Set("logbufsecs", "-1"); err == nil {
+		t.Fatalf("accepted negative value")
+	}
+	if err := flag.Set("logbufsecs", "1"); err != nil {
+		t.Fatalf("failed to set flag: %s", err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	logging.newBuffers()
+	nif, nwf, nef := getNumFlushes()
+	Info("hello")
+	Info("world")
+	Warning("stranger")
+	Error("danger")
+	time.Sleep(1 * time.Second)
+	nif, nwf, nef = getNumFlushes()
+	if nif != 1 || nwf != 1 || nef != 1 {
+		t.Fatalf("expected exactly one flush for each, got: %d/%d/%d", nif, nwf, nef)
+	}
+}
+
+func TestLogBufSecs0(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+	if err := flag.Set("logbufsecs", "0"); err != nil {
+		t.Fatalf("failed to set flag: %s", err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	logging.newBuffers()
+	Info("hello")
+	Info("world")
+	Warning("stranger")
+	Error("danger")
+	time.Sleep(200 * time.Millisecond)
+	nif, nwf, nef := getNumFlushes()
+	if nif != 4 || nwf != 2 || nef != 1 {
+		t.Fatalf("expected 4/2/1 flushes, got: %d/%d/%d", nif, nwf, nef)
 	}
 }
 
