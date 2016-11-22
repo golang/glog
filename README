@@ -35,6 +35,26 @@ The comment from glog.go introduces the ideas:
 	
 		glog.V(2).Infoln("Processed", nItems, "elements")
 
+        In order for the glog-specific flags to take effect, 
+	package main should resemble:
+
+                package main
+
+	    	import (
+	        	"flag"	
+			"github.com/golang/glog"
+        	)	
+
+        	func main() {
+	        	flag.Parse()
+			defer glog.Flush()  // optional
+			// continue your program
+        	}
+
+    	Then call the program with your desired command-line flags:
+
+        	go run main.go -log_dir="./log"
+        
 
 The repository contains an open source version of the log package
 used inside Google. The master copy of the source lives inside
