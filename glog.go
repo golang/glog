@@ -630,7 +630,9 @@ func (buf *buffer) someDigits(i, d int) int {
 func (l *loggingT) println(s severity, args ...interface{}) {
 	buf, file, line := l.header(s, 0)
 	fmt.Fprintln(buf, args...)
-	l.output(s, buf, file, line, false)
+    go func() {
+    	l.output(s, buf, file, line, false)
+    }()
 }
 
 func (l *loggingT) print(s severity, args ...interface{}) {
@@ -643,7 +645,9 @@ func (l *loggingT) printDepth(s severity, depth int, args ...interface{}) {
 	if buf.Bytes()[buf.Len()-1] != '\n' {
 		buf.WriteByte('\n')
 	}
-	l.output(s, buf, file, line, false)
+    go func() {
+	    l.output(s, buf, file, line, false)
+    }()
 }
 
 func (l *loggingT) printf(s severity, format string, args ...interface{}) {
@@ -652,7 +656,9 @@ func (l *loggingT) printf(s severity, format string, args ...interface{}) {
 	if buf.Bytes()[buf.Len()-1] != '\n' {
 		buf.WriteByte('\n')
 	}
-	l.output(s, buf, file, line, false)
+    go func() {
+    	l.output(s, buf, file, line, false)
+    }()
 }
 
 // printWithFileLine behaves like print but uses the provided file and line number.  If
@@ -664,7 +670,9 @@ func (l *loggingT) printWithFileLine(s severity, file string, line int, alsoToSt
 	if buf.Bytes()[buf.Len()-1] != '\n' {
 		buf.WriteByte('\n')
 	}
-	l.output(s, buf, file, line, alsoToStderr)
+    go func() {
+	    l.output(s, buf, file, line, alsoToStderr)
+    }()
 }
 
 // output writes the data to the log files and releases the buffer.
