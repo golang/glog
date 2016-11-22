@@ -402,12 +402,28 @@ func init() {
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
+	logging.flag = flag.CommandLine
 
 	// Default stderrThreshold is ERROR.
 	logging.stderrThreshold = errorLog
 
 	logging.setVState(0, nil, false)
 	go logging.flushDaemon()
+}
+
+func InitWithFlag(f *flag.FlagSet) {
+	if f == nil {
+		os.Stderr.Write([]byte("ERROR: init with nil flagset"))
+		return
+	}
+	f.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
+	f.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
+	f.Var(&logging.verbosity, "v", "log level for V logs")
+	f.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
+	f.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
+	f.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
+	logDir = f.String("log_dir", "", "If non-empty, write log files in this directory")
+	logging.flag = f
 }
 
 // Flush flushes all pending log I/O.
@@ -453,6 +469,7 @@ type loggingT struct {
 	// safely using atomic.LoadInt32.
 	vmodule   moduleSpec // The state of the -vmodule flag.
 	verbosity Level      // V logging level, the value of the -v flag/
+	flag      *flag.FlagSet
 }
 
 // buffer holds a byte Buffer for reuse. The zero value is ready for use.
@@ -676,7 +693,7 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 		}
 	}
 	data := buf.Bytes()
-	if !flag.Parsed() {
+	if !l.flag.Parsed() {
 		os.Stderr.Write([]byte("ERROR: logging before flag.Parse: "))
 		os.Stderr.Write(data)
 	} else if l.toStderr {
