@@ -402,6 +402,7 @@ func init() {
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
+	flag.Uint64Var(&logging.MaxLogFileSize, "max-logfile-size", MaxSize, "when log file reach the max size(byte) would rotate")
 
 	// Default stderrThreshold is ERROR.
 	logging.stderrThreshold = errorLog
@@ -446,7 +447,8 @@ type loggingT struct {
 	// filterLength stores the length of the vmodule filter chain. If greater
 	// than zero, it means vmodule is enabled. It may be read safely
 	// using sync.LoadInt32, but is only modified under mu.
-	filterLength int32
+	filterLength   int32
+	MaxLogFileSize uint64
 	// traceLocation is the state of the -log_backtrace_at flag.
 	traceLocation traceLocation
 	// These flags are modified only under lock, although verbosity may be fetched
@@ -812,7 +814,7 @@ func (sb *syncBuffer) Sync() error {
 }
 
 func (sb *syncBuffer) Write(p []byte) (n int, err error) {
-	if sb.nbytes+uint64(len(p)) >= MaxSize {
+	if sb.nbytes+uint64(len(p)) >= sb.logger.MaxLogFileSize {
 		if err := sb.rotateFile(time.Now()); err != nil {
 			sb.logger.exit(err)
 		}
