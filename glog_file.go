@@ -40,11 +40,20 @@ var logDirs []string
 // See createLogDirs for the full list of possible destinations.
 var logDir = flag.String("log_dir", "", "If non-empty, write log files in this directory")
 
+var logProgName = flag.String("log_prog_name", "", "if non-empty, log files prefix the specified program name instead of default one")
+
 func createLogDirs() {
 	if *logDir != "" {
 		logDirs = append(logDirs, *logDir)
 	}
 	logDirs = append(logDirs, os.TempDir())
+}
+
+// overwrite log program name if user provides one.
+func overwriteProgramIfProvided() {
+	if *logProgName != "" {
+		program = *logProgName
+	}
 }
 
 var (
@@ -97,6 +106,7 @@ func logName(tag string, t time.Time) (name, link string) {
 }
 
 var onceLogDirs sync.Once
+var onceLogProgName sync.Once
 
 // create creates a new log file and returns the file and its filename, which
 // contains tag ("INFO", "FATAL", etc.) and t.  If the file is created
@@ -104,6 +114,8 @@ var onceLogDirs sync.Once
 // errors.
 func create(tag string, t time.Time) (f *os.File, filename string, err error) {
 	onceLogDirs.Do(createLogDirs)
+	onceLogProgName.Do(overwriteProgramIfProvided)
+
 	if len(logDirs) == 0 {
 		return nil, "", errors.New("log: no log dirs")
 	}
