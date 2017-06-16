@@ -1178,3 +1178,64 @@ func Exitf(format string, args ...interface{}) {
 	atomic.StoreUint32(&fatalNoStacks, 1)
 	logging.printf(fatalLog, format, args...)
 }
+
+// S reports whether section at the call site is enable. It allow user discern
+// source of the log.
+// The returned value is a boolean of type Verbose, which implements Info, Infoln
+// and Infof. These methods will write to the Info log if called.
+// Thus, one may write either
+//	if glog.S(0) { glog.Info("log this") }
+// or
+//	glog.S(0).Info("log this")
+// or
+//	if glog.S("abc") { glog.Info("log this") }
+// or
+//	glog.S("abc").Info("log this")
+// or
+//	glog.S("abc").V(2).Info("log this")
+// or
+//	glog.V(2).S("abc").Info("log this")
+// 
+// The second form is shorter but the first is cheaper if logging is off because it does
+// not evaluate its arguments.
+func S(key interface{}) Verbose {
+	sectionMu.RLock()
+	defer sectionMu.RUnlock()
+	b, exists := sections[key]
+	if !exists || b {
+		return Verbose(true)
+    }
+
+	return Verbose(false)
+}
+
+var sections = make(map[interface{}]bool)
+var sectionMu sync.RWMutex
+
+func EnableSection(key interface{}) {
+	sectionMu.Lock()
+	defer sectionMu.Unlock()
+	sections[key] = true
+}
+
+func DisableSection(key interface{}) {
+	sectionMu.Lock()
+	defer sectionMu.Unlock()
+	sections[key] = false
+}
+
+func (v Verbose) S(key interface{}) Verbose {
+	if !v {
+		return Verbose(false)
+    }
+
+	return S(key)
+}
+
+func (v Verbose) V(level Level) Verbose {
+	if !v {
+		return Verbose(false)
+    }
+
+	return V(level)
+}

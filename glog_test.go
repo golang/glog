@@ -249,6 +249,49 @@ func TestV(t *testing.T) {
 	}
 }
 
+// Test that a B log goes to Info.
+func runTestS(key interface{}, t *testing.T) {
+	logging.newBuffers()
+	S(key).Info("test")
+	if !contains(infoLog, "I", t) {
+		t.Errorf("Info has wrong character: %q", contents(infoLog))
+	}
+	if !contains(infoLog, "test", t) {
+		t.Error("Info failed")
+	}
+
+	logging.newBuffers()
+	DisableSection(key)
+	S(key).Info("test")
+	if contains(infoLog, "I", t) {
+		t.Errorf("Info has wrong character: %q", contents(infoLog))
+	}
+	if contains(infoLog, "test", t) {
+		t.Error("Info failed")
+	}
+
+	logging.newBuffers()
+	EnableSection(key)
+	S(key).Info("test")
+	if !contains(infoLog, "I", t) {
+		t.Errorf("Info has wrong character: %q", contents(infoLog))
+	}
+	if !contains(infoLog, "test", t) {
+		t.Error("Info failed")
+	}
+}
+
+func TestS(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+
+	runTestS(1, t)
+	runTestS(1, t)
+	runTestS(2, t)
+	runTestS("glog", t)
+	runTestS("glog", t)
+}
+
 // Test that a vmodule enables a log in this file.
 func TestVmoduleOn(t *testing.T) {
 	setFlags()
