@@ -427,5 +427,7 @@ func TestDebug(t *testing.T) {
 	if !contains(infoLog, "test", t) {
 		t.Error("Info failed")
 	}
+	t.Log(contents(infoLog))
+
 	logging.verbosity.set(oldV)
 }
