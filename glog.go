@@ -1178,3 +1178,27 @@ func Exitf(format string, args ...interface{}) {
 	atomic.StoreUint32(&fatalNoStacks, 1)
 	logging.printf(fatalLog, format, args...)
 }
+
+// Debug logs to the INFO log.
+// Arguments are handled in the manner of fmt.Print; a newline is appended if missing.
+func Debug(args ...interface{}) {
+	if V(3) {
+		logging.print(infoLog, args...)
+	}
+}
+
+// Debugln logs to the INFO log.
+// Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
+func Debugln(args ...interface{}) {
+	if V(3) {
+		logging.println(infoLog, args...)
+	}
+}
+
+// Debugf logs to the INFO log.
+// Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
+func Debugf(format string, args ...interface{}) {
+	if V(3) {
+		logging.printf(infoLog, format, args...)
+	}
+}

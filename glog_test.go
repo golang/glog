@@ -413,3 +413,19 @@ func BenchmarkHeader(b *testing.B) {
 		logging.putBuffer(buf)
 	}
 }
+
+// Test that Info works as advertised.
+func TestDebug(t *testing.T) {
+	var oldV = logging.verbosity.get()
+	logging.verbosity.set(3)
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+	Debug("test")
+	if !contains(infoLog, "I", t) {
+		t.Errorf("Info has wrong character: %q", contents(infoLog))
+	}
+	if !contains(infoLog, "test", t) {
+		t.Error("Info failed")
+	}
+	logging.verbosity.set(oldV)
+}
