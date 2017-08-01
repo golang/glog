@@ -402,6 +402,7 @@ func init() {
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
+	flag.BoolVar(&logging.color, "color", false, "log with ANSI color escape sequences depending on level")
 
 	// Default stderrThreshold is ERROR.
 	logging.stderrThreshold = errorLog
@@ -453,6 +454,7 @@ type loggingT struct {
 	// safely using atomic.LoadInt32.
 	vmodule   moduleSpec // The state of the -vmodule flag.
 	verbosity Level      // V logging level, the value of the -v flag/
+	color     bool       // log in color (with ANSI escape sequences)
 }
 
 // buffer holds a byte Buffer for reuse. The zero value is ready for use.
@@ -548,6 +550,9 @@ func (l *loggingT) header(s severity, depth int) (*buffer, string, int) {
 
 // formatHeader formats a log header using the provided file name and line number.
 func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
+	if l.color {
+		return l.formatColorHeader(s, file, line)
+	}
 	now := timeNow()
 	if line < 0 {
 		line = 0 // not a real line number, but acceptable to someDigits
@@ -576,13 +581,64 @@ func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
 	buf.tmp[21] = ' '
 	buf.nDigits(7, 22, pid, ' ') // TODO: should be TID
 	buf.tmp[29] = ' '
-	buf.Write(buf.tmp[:30])
+	buf.tmp[30] = '['
+	buf.Write(buf.tmp[:31])
 	buf.WriteString(file)
 	buf.tmp[0] = ':'
 	n := buf.someDigits(1, line)
 	buf.tmp[n+1] = ']'
 	buf.tmp[n+2] = ' '
 	buf.Write(buf.tmp[:n+3])
+	return buf
+}
+
+// formatHeader formats a log header using the provided file name and line number.
+// TODO: Could be combined with formatHeader and just add if statements for begin
+// and end escape sequences.
+func (l *loggingT) formatColorHeader(s severity, file string, line int) *buffer {
+	// info = green
+	// warn = yellow
+	// error / fatal = red
+	colorstrs := []string{"\033[32m", "\033[33m", "\033[31m", "\033[31m"}
+	now := timeNow()
+	if line < 0 {
+		line = 0 // not a real line number, but acceptable to someDigits
+	}
+	if s > fatalLog {
+		s = infoLog // for safety.
+	}
+	buf := l.getBuffer()
+
+	buf.WriteString(colorstrs[s])
+	// Avoid Fprintf, for speed. The format is so simple that we can do it quickly by hand.
+	// It's worth about 3X. Fprintf is hard.
+	_, month, day := now.Date()
+	hour, minute, second := now.Clock()
+	// Lmmdd hh:mm:ss.uuuuuu threadid file:line]
+	buf.tmp[0] = severityChar[s]
+	buf.twoDigits(1, int(month))
+	buf.twoDigits(3, day)
+	buf.tmp[5] = ' '
+	buf.twoDigits(6, hour)
+	buf.tmp[8] = ':'
+	buf.twoDigits(9, minute)
+	buf.tmp[11] = ':'
+	buf.twoDigits(12, second)
+	buf.tmp[14] = '.'
+	buf.nDigits(6, 15, now.Nanosecond()/1000, '0')
+	buf.tmp[21] = ' '
+	buf.nDigits(7, 22, pid, ' ') // TODO: should be TID
+	buf.tmp[29] = ' '
+	buf.tmp[30] = '['
+	buf.Write(buf.tmp[:31])
+	buf.WriteString(file)
+
+	buf.tmp[0] = ':'
+	n := buf.someDigits(1, line)
+	buf.tmp[n+1] = ']'
+	buf.tmp[n+2] = ' '
+	buf.Write(buf.tmp[:n+3])
+	buf.WriteString("\033[0m") // 'clear formatting' ANSI escape sequence
 	return buf
 }
 
