@@ -402,6 +402,7 @@ func init() {
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
+	flag.BoolVar(&logging.color, "color", false, "log with ANSI color escape sequences depending on level")
 
 	// Default stderrThreshold is ERROR.
 	logging.stderrThreshold = errorLog
@@ -453,6 +454,7 @@ type loggingT struct {
 	// safely using atomic.LoadInt32.
 	vmodule   moduleSpec // The state of the -vmodule flag.
 	verbosity Level      // V logging level, the value of the -v flag/
+	color     bool       // log in color (with ANSI escape sequences)
 }
 
 // buffer holds a byte Buffer for reuse. The zero value is ready for use.
@@ -548,6 +550,11 @@ func (l *loggingT) header(s severity, depth int) (*buffer, string, int) {
 
 // formatHeader formats a log header using the provided file name and line number.
 func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
+	// info = green
+	// warn = yellow
+	// error / fatal = red
+	ANSIcolors := []string{"\033[32m", "\033[33m", "\033[31m", "\033[31m"}
+	ANSIclear := "\033[0m"
 	now := timeNow()
 	if line < 0 {
 		line = 0 // not a real line number, but acceptable to someDigits
@@ -557,6 +564,9 @@ func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
 	}
 	buf := l.getBuffer()
 
+	if l.color {
+		buf.WriteString(ANSIcolors[s])
+	}
 	// Avoid Fprintf, for speed. The format is so simple that we can do it quickly by hand.
 	// It's worth about 3X. Fprintf is hard.
 	_, month, day := now.Date()
@@ -576,13 +586,18 @@ func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
 	buf.tmp[21] = ' '
 	buf.nDigits(7, 22, pid, ' ') // TODO: should be TID
 	buf.tmp[29] = ' '
-	buf.Write(buf.tmp[:30])
+	buf.tmp[30] = '['
+	buf.Write(buf.tmp[:31])
 	buf.WriteString(file)
+
 	buf.tmp[0] = ':'
 	n := buf.someDigits(1, line)
 	buf.tmp[n+1] = ']'
 	buf.tmp[n+2] = ' '
 	buf.Write(buf.tmp[:n+3])
+	if l.color {
+		buf.WriteString(ANSIclear) // 'clear formatting' ANSI escape sequence
+	}
 	return buf
 }
 
