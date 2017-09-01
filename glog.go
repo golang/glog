@@ -86,6 +86,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/huandu/goroutine"
 )
 
 // severity identifies the sort of log: info, warning etc. It also implements
@@ -398,7 +400,7 @@ type flushSyncWriter interface {
 func init() {
 	flag.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
-	flag.Var(&logging.verbosity, "v", "log level for V logs")
+	flag.Var(&logging.verbosity, "vv", "log level for V logs")
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
@@ -582,7 +584,10 @@ func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
 	n := buf.someDigits(1, line)
 	buf.tmp[n+1] = ']'
 	buf.tmp[n+2] = ' '
-	buf.Write(buf.tmp[:n+3])
+	id := goroutine.GoroutineId()
+	buf.nDigits(7, n+3, int(id), '0')
+	buf.tmp[n+10] = ' '
+	buf.Write(buf.tmp[:n+11])
 	return buf
 }
 
@@ -1177,4 +1182,28 @@ func Exitln(args ...interface{}) {
 func Exitf(format string, args ...interface{}) {
 	atomic.StoreUint32(&fatalNoStacks, 1)
 	logging.printf(fatalLog, format, args...)
+}
+
+// Debug logs to the INFO log.
+// Arguments are handled in the manner of fmt.Print; a newline is appended if missing.
+func Debug(args ...interface{}) {
+	if V(3) {
+		logging.print(infoLog, args...)
+	}
+}
+
+// Debugln logs to the INFO log.
+// Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
+func Debugln(args ...interface{}) {
+	if V(3) {
+		logging.println(infoLog, args...)
+	}
+}
+
+// Debugf logs to the INFO log.
+// Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
+func Debugf(format string, args ...interface{}) {
+	if V(3) {
+		logging.printf(infoLog, format, args...)
+	}
 }
