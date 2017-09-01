@@ -87,7 +87,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/huandu/goroutine"
+	"github.com/silentred/gid"
 )
 
 // severity identifies the sort of log: info, warning etc. It also implements
@@ -584,7 +584,7 @@ func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
 	n := buf.someDigits(1, line)
 	buf.tmp[n+1] = ']'
 	buf.tmp[n+2] = ' '
-	id := goroutine.GoroutineId()
+	id := gid.Get()
 	buf.nDigits(7, n+3, int(id), '0')
 	buf.tmp[n+10] = ' '
 	buf.Write(buf.tmp[:n+11])
