@@ -26,6 +26,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"sort"
 	"sync"
 	"time"
 )
@@ -39,6 +40,7 @@ var logDirs []string
 // If non-empty, overrides the choice of directory in which to write logs.
 // See createLogDirs for the full list of possible destinations.
 var logDir = flag.String("log_dir", "", "If non-empty, write log files in this directory")
+var logFileNum = flag.Int("log_file_num", 10, "$log_file_num files will be preserved per level, default to 10")
 
 func createLogDirs() {
 	if *logDir != "" {
@@ -116,9 +118,38 @@ func create(tag string, t time.Time) (f *os.File, filename string, err error) {
 			symlink := filepath.Join(dir, link)
 			os.Remove(symlink)        // ignore err
 			os.Symlink(name, symlink) // ignore err
+			clean(dir, tag)
 			return f, fname, nil
 		}
 		lastErr = err
 	}
 	return nil, "", fmt.Errorf("log: cannot create log: %v", lastErr)
+}
+
+func clean(dir, tag string) error {
+	f, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	names, err := f.Readdirnames(-1)
+	f.Close()
+	if err != nil {
+		return err
+	}
+
+	prefix := fmt.Sprintf("%s.%s.%s.log.%s", program, host, userName, tag)
+	logs := make([]string, 0)
+	for _, name := range names {
+		if strings.Contains(name, prefix) {
+			logs = append(logs, dir+"/"+name)
+		}
+	}
+	sort.Strings(logs)
+	if *logFileNum < 1 {
+		*logFileNum = 1
+	}
+	for i := 0; i < len(logs)-*logFileNum; i++ {
+		os.Remove(logs[i])
+	}
+	return nil
 }
