@@ -402,6 +402,7 @@ func init() {
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
+	flag.IntVar(&logging.fileNameStackDepth, "fileNameStackDepth", 3, "Stack depth to be used to retrive file name")
 
 	// Default stderrThreshold is ERROR.
 	logging.stderrThreshold = errorLog
@@ -422,7 +423,7 @@ type loggingT struct {
 	// compatibility. TODO: does this matter enough to fix? Seems unlikely.
 	toStderr     bool // The -logtostderr flag.
 	alsoToStderr bool // The -alsologtostderr flag.
-
+	fileNameStackDepth   int
 	// Level flag. Handled atomically.
 	stderrThreshold severity // The -stderrthreshold flag.
 
@@ -533,7 +534,7 @@ where the fields are defined as follows:
 	msg              The user-supplied message
 */
 func (l *loggingT) header(s severity, depth int) (*buffer, string, int) {
-	_, file, line, ok := runtime.Caller(3 + depth)
+	_, file, line, ok := runtime.Caller(l.fileNameStackDepth + depth)
 	if !ok {
 		file = "???"
 		line = 1
