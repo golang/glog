@@ -3,28 +3,43 @@
 package glogr
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"runtime"
+	"sort"
 
+	"github.com/go-logr/logr"
 	"github.com/golang/glog"
-	"github.com/thockin/logr"
 )
 
 // New returns a logr.Logger which is implemented by glog.
-func New() (logr.Logger, error) {
+func New() logr.Logger {
 	return glogger{
 		level:  0,
 		prefix: "",
-	}, nil
+		values: nil,
+	}
 }
 
 type glogger struct {
 	level  int
 	prefix string
+	values []interface{}
 }
 
-func prepend(prefix interface{}, args []interface{}) []interface{} {
-	return append([]interface{}{prefix}, args...)
+func (l glogger) clone() glogger {
+	return glogger{
+		level:  l.level,
+		prefix: l.prefix,
+		values: copySlice(l.values),
+	}
+}
+
+func copySlice(in []interface{}) []interface{} {
+	out := make([]interface{}, len(in))
+	copy(out, in)
+	return out
 }
 
 // Magic string for intermediate frames that we should ignore.
@@ -44,15 +59,52 @@ func framesToCaller() int {
 	return 1 // something went wrong, this is safe
 }
 
-func (l glogger) Info(args ...interface{}) {
-	if l.Enabled() {
-		glog.InfoDepth(framesToCaller(), prepend(l.prefix, args)...)
-	}
+type kvPair struct {
+	key string
+	val interface{}
 }
 
-func (l glogger) Infof(format string, args ...interface{}) {
+func flatten(kvList ...interface{}) string {
+	keys := make([]string, 0, len(kvList))
+	vals := make(map[string]interface{}, len(kvList))
+	for i := 0; i < len(kvList); i += 2 {
+		k, ok := kvList[i].(string)
+		if !ok {
+			panic(fmt.Sprintf("key is not a string: %s", pretty(kvList[i])))
+		}
+		var v interface{}
+		if i+1 < len(kvList) {
+			v = kvList[i+1]
+		}
+		keys = append(keys, k)
+		vals[k] = v
+	}
+	sort.Strings(keys)
+	buf := bytes.Buffer{}
+	for i, k := range keys {
+		v := vals[k]
+		if i > 0 {
+			buf.WriteRune(' ')
+		}
+		buf.WriteString(pretty(k))
+		buf.WriteString("=")
+		buf.WriteString(pretty(v))
+	}
+	return buf.String()
+}
+
+func pretty(value interface{}) string {
+	jb, _ := json.Marshal(value)
+	return string(jb)
+}
+
+func (l glogger) Info(msg string, kvList ...interface{}) {
 	if l.Enabled() {
-		glog.InfoDepth(framesToCaller(), fmt.Sprintf("%s"+format, prepend(l.prefix, args)...))
+		lvlStr := flatten("level", l.level)
+		msgStr := flatten("msg", msg)
+		fixedStr := flatten(l.values...)
+		userStr := flatten(kvList...)
+		glog.InfoDepth(framesToCaller(), l.prefix, " ", lvlStr, " ", msgStr, " ", fixedStr, " ", userStr)
 	}
 }
 
@@ -60,26 +112,40 @@ func (l glogger) Enabled() bool {
 	return bool(glog.V(glog.Level(l.level)))
 }
 
-func (l glogger) Error(args ...interface{}) {
-	glog.ErrorDepth(framesToCaller(), prepend(l.prefix, args)...)
-}
-
-func (l glogger) Errorf(format string, args ...interface{}) {
-	glog.ErrorDepth(framesToCaller(), fmt.Sprintf("%s"+format, prepend(l.prefix, args)...))
+func (l glogger) Error(err error, msg string, kvList ...interface{}) {
+	msgStr := flatten("msg", msg)
+	var loggableErr interface{}
+	if err != nil {
+		loggableErr = err.Error()
+	}
+	errStr := flatten("error", loggableErr)
+	fixedStr := flatten(l.values...)
+	userStr := flatten(kvList...)
+	glog.ErrorDepth(framesToCaller(), l.prefix, " ", msgStr, " ", errStr, " ", fixedStr, " ", userStr)
 }
 
 func (l glogger) V(level int) logr.InfoLogger {
-	return glogger{
-		level:  level,
-		prefix: l.prefix,
-	}
+	new := l.clone()
+	new.level = level
+	return new
 }
 
-func (l glogger) NewWithPrefix(prefix string) logr.Logger {
-	return glogger{
-		level:  l.level,
-		prefix: prefix,
+// WithName returns a new logr.Logger with the specified name appended.  glogr
+// uses '/' characters to separate name elements.  Callers should not pass '/'
+// in the provided name string, but this library does not actually enforce that.
+func (l glogger) WithName(name string) logr.Logger {
+	new := l.clone()
+	if len(l.prefix) > 0 {
+		new.prefix = l.prefix + "/"
 	}
+	new.prefix += name
+	return new
+}
+
+func (l glogger) WithValues(kvList ...interface{}) logr.Logger {
+	new := l.clone()
+	new.values = append(new.values, kvList...)
+	return new
 }
 
 var _ logr.Logger = glogger{}
