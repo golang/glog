@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package glog implements logging analogous to the Google-internal C++ INFO/ERROR/V setup.
+// Package klog implements logging analogous to the Google-internal C++ INFO/ERROR/V setup.
 // It provides functions Info, Warning, Error, Fatal, plus formatting variants such as
 // Infof. It also provides V-style logging controlled by the -v and -vmodule=file=2 flags.
 //
@@ -879,7 +879,7 @@ const flushInterval = 30 * time.Second
 
 // flushDaemon periodically flushes the log file buffers.
 func (l *loggingT) flushDaemon() {
-	for _ = range time.NewTicker(flushInterval).C {
+	for range time.NewTicker(flushInterval).C {
 		l.lockAndFlushAll()
 	}
 }
