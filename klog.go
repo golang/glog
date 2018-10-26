@@ -413,6 +413,7 @@ func InitFlags(flagset *flag.FlagSet) {
 	flagset.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
 	flagset.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
 	flagset.Var(&logging.verbosity, "v", "log level for V logs")
+	flagset.BoolVar(&logging.skipHeaders, "skip_headers", false, "If true, avoid header prefixes in the log messages")
 	flagset.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flagset.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flagset.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
@@ -469,6 +470,9 @@ type loggingT struct {
 	// If non-empty, specifies the path of the file to write logs. mutually exclusive
 	// with the log-dir option.
 	logFile string
+
+	// If true, do not add the prefix headers, useful when used with SetOutput
+	skipHeaders bool
 }
 
 // buffer holds a byte Buffer for reuse. The zero value is ready for use.
@@ -572,6 +576,9 @@ func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
 		s = infoLog // for safety.
 	}
 	buf := l.getBuffer()
+	if l.skipHeaders {
+		return buf
+	}
 
 	// Avoid Fprintf, for speed. The format is so simple that we can do it quickly by hand.
 	// It's worth about 3X. Fprintf is hard.

@@ -8,6 +8,7 @@ import (
 )
 
 func main() {
+	klog.InitFlags(nil)
 	flag.Set("logtostderr", "false")
 	flag.Set("alsologtostderr", "false")
 	flag.Parse()
