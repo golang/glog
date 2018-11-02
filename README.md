@@ -1,7 +1,7 @@
 klog
 ====
 
-klog is a permanant fork of fork of https://github.com/golang/glog. original README from glog is below
+klog is a permanant fork of https://github.com/golang/glog. original README from glog is below
 
 ----
 
