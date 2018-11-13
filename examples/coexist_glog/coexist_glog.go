@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/dims/klog"
 	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 type glogWriter struct{}
