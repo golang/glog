@@ -5,6 +5,17 @@ klog is a permanant fork of https://github.com/golang/glog. original README from
 
 ----
 
+How to use klog
+===============
+- Replace imports for `github.com/golang/glog` with `k8s.io/klog`
+- Use `klog.InitFlags(nil)` explicitly for initializing global flags as we no longer use `init()` method to register the flags
+- You can now use `log-file` instead of `log-dir` for logging to a single file (See `examples/log_file/usage_log_file.go`)
+- If you want to redirect everything logged using klog somewhere else (say syslog!), you can use `klog.SetOutput()` method and supply a `io.Writer`. (See `examples/set_output/usage_set_output.go`)
+- If you want to keep the older `glog` in charge of actual logging but end up mixing files that use `klog`, you can use `klog.SetOutput()` for that as well.  (See `examples/coexist_glog/coexist_glog.go`)
+- Another pattern you can use is `k8s.io/klog/glog` which is a proxy that implements the older `glog` API with `dep` override (or fixing up just imports)
+
+----
+
 glog
 ====
 
