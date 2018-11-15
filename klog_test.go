@@ -285,13 +285,13 @@ func TestVmoduleOn(t *testing.T) {
 	defer logging.swap(logging.newBuffers())
 	logging.vmodule.Set("klog_test=2")
 	defer logging.vmodule.Set("")
-	if !V(1) {
+	if !V(1).Enabled() {
 		t.Error("V not enabled for 1")
 	}
-	if !V(2) {
+	if !V(2).Enabled() {
 		t.Error("V not enabled for 2")
 	}
-	if V(3) {
+	if V(3).Enabled() {
 		t.Error("V enabled for 3")
 	}
 	V(2).Info("test")
@@ -310,7 +310,7 @@ func TestVmoduleOff(t *testing.T) {
 	logging.vmodule.Set("notthisfile=2")
 	defer logging.vmodule.Set("")
 	for i := 1; i <= 3; i++ {
-		if V(Level(i)) {
+		if V(Level(i)).Enabled() {
 			t.Errorf("V enabled for %d", i)
 		}
 	}
@@ -344,7 +344,7 @@ func testVmoduleGlob(pat string, match bool, t *testing.T) {
 	defer logging.swap(logging.newBuffers())
 	defer logging.vmodule.Set("")
 	logging.vmodule.Set(pat)
-	if V(2) != Verbose(match) {
+	if V(2).Enabled() != match {
 		t.Errorf("incorrect match for %q: got %t expected %t", pat, V(2), match)
 	}
 }
