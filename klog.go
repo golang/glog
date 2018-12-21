@@ -412,7 +412,7 @@ func InitFlags(flagset *flag.FlagSet) {
 	flagset.StringVar(&logging.logFile, "log_file", "", "If non-empty, use this log file")
 	flagset.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
 	flagset.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
-	flagset.Var(&logging.verbosity, "v", "log level for V logs")
+	flagset.Var(&logging.verbosity, "v", "number for the log level verbosity")
 	flagset.BoolVar(&logging.skipHeaders, "skip_headers", false, "If true, avoid header prefixes in the log messages")
 	flagset.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flagset.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
