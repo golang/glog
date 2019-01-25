@@ -13,7 +13,7 @@ import (
 	"k8s.io/klog"
 )
 
-// New returns a logr.Logger which is implemented by glog.
+// New returns a logr.Logger which is implemented by klog.
 func New() logr.Logger {
 	return klogger{
 		level:  0,
@@ -125,7 +125,7 @@ func (l klogger) V(level int) logr.InfoLogger {
 	return new
 }
 
-// WithName returns a new logr.Logger with the specified name appended.  glogr
+// WithName returns a new logr.Logger with the specified name appended.  klogr
 // uses '/' characters to separate name elements.  Callers should not pass '/'
 // in the provided name string, but this library does not actually enforce that.
 func (l klogger) WithName(name string) logr.Logger {
