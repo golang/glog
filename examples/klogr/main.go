@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 
-	"k8s.io/klog/klogr"
 	"k8s.io/klog"
+	"k8s.io/klog/klogr"
 )
 
 type E struct {
