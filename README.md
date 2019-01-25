@@ -1,7 +1,7 @@
-# Minimal Go logging using glog
+# Minimal Go logging using klog
 
-This package implements the [logr interface](https://github.com/thockin/logr)
-in terms of Google's [glog](https://godoc.org/github.com/golang/glog).  This
+This package implements the [logr interface](github.com/go-logr/logr)
+in terms of Kubernetes' [klog](https://github.com/kubernetes/klog).  This
 provides a relatively minimalist API to logging in Go, backed by a well-proven
 implementation.
 

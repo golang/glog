@@ -1,6 +1,6 @@
-// Package glogr implements github.com/thockin/logr.Logger in terms of
-// github.com/golang/glog.
-package glogr
+// Package klogr implements github.com/go-logr/logr.Logger in terms of
+// k8s.io/klog.
+package klogr
 
 import (
 	"bytes"
@@ -10,26 +10,26 @@ import (
 	"sort"
 
 	"github.com/go-logr/logr"
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 // New returns a logr.Logger which is implemented by glog.
 func New() logr.Logger {
-	return glogger{
+	return klogger{
 		level:  0,
 		prefix: "",
 		values: nil,
 	}
 }
 
-type glogger struct {
+type klogger struct {
 	level  int
 	prefix string
 	values []interface{}
 }
 
-func (l glogger) clone() glogger {
-	return glogger{
+func (l klogger) clone() klogger {
+	return klogger{
 		level:  l.level,
 		prefix: l.prefix,
 		values: copySlice(l.values),
@@ -57,11 +57,6 @@ func framesToCaller() int {
 		}
 	}
 	return 1 // something went wrong, this is safe
-}
-
-type kvPair struct {
-	key string
-	val interface{}
 }
 
 func flatten(kvList ...interface{}) string {
@@ -98,21 +93,21 @@ func pretty(value interface{}) string {
 	return string(jb)
 }
 
-func (l glogger) Info(msg string, kvList ...interface{}) {
+func (l klogger) Info(msg string, kvList ...interface{}) {
 	if l.Enabled() {
 		lvlStr := flatten("level", l.level)
 		msgStr := flatten("msg", msg)
 		fixedStr := flatten(l.values...)
 		userStr := flatten(kvList...)
-		glog.InfoDepth(framesToCaller(), l.prefix, " ", lvlStr, " ", msgStr, " ", fixedStr, " ", userStr)
+		klog.InfoDepth(framesToCaller(), l.prefix, " ", lvlStr, " ", msgStr, " ", fixedStr, " ", userStr)
 	}
 }
 
-func (l glogger) Enabled() bool {
-	return bool(glog.V(glog.Level(l.level)))
+func (l klogger) Enabled() bool {
+	return bool(klog.V(klog.Level(l.level)))
 }
 
-func (l glogger) Error(err error, msg string, kvList ...interface{}) {
+func (l klogger) Error(err error, msg string, kvList ...interface{}) {
 	msgStr := flatten("msg", msg)
 	var loggableErr interface{}
 	if err != nil {
@@ -121,10 +116,10 @@ func (l glogger) Error(err error, msg string, kvList ...interface{}) {
 	errStr := flatten("error", loggableErr)
 	fixedStr := flatten(l.values...)
 	userStr := flatten(kvList...)
-	glog.ErrorDepth(framesToCaller(), l.prefix, " ", msgStr, " ", errStr, " ", fixedStr, " ", userStr)
+	klog.ErrorDepth(framesToCaller(), l.prefix, " ", msgStr, " ", errStr, " ", fixedStr, " ", userStr)
 }
 
-func (l glogger) V(level int) logr.InfoLogger {
+func (l klogger) V(level int) logr.InfoLogger {
 	new := l.clone()
 	new.level = level
 	return new
@@ -133,7 +128,7 @@ func (l glogger) V(level int) logr.InfoLogger {
 // WithName returns a new logr.Logger with the specified name appended.  glogr
 // uses '/' characters to separate name elements.  Callers should not pass '/'
 // in the provided name string, but this library does not actually enforce that.
-func (l glogger) WithName(name string) logr.Logger {
+func (l klogger) WithName(name string) logr.Logger {
 	new := l.clone()
 	if len(l.prefix) > 0 {
 		new.prefix = l.prefix + "/"
@@ -142,11 +137,11 @@ func (l glogger) WithName(name string) logr.Logger {
 	return new
 }
 
-func (l glogger) WithValues(kvList ...interface{}) logr.Logger {
+func (l klogger) WithValues(kvList ...interface{}) logr.Logger {
 	new := l.clone()
 	new.values = append(new.values, kvList...)
 	return new
 }
 
-var _ logr.Logger = glogger{}
-var _ logr.InfoLogger = glogger{}
+var _ logr.Logger = klogger{}
+var _ logr.InfoLogger = klogger{}
