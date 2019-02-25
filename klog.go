@@ -809,7 +809,7 @@ func (l *loggingT) output(s severity, log logr.InfoLogger, buf *buffer, file str
 	}
 	data := buf.Bytes()
 	if l != nil {
-		keysAndValues := []interface{}{"severity", severityName[s]}
+		keysAndValues := []interface{}{"severity", severityName[s], "file", file, "line", line}
 		if s == errorLog {
 			// if this is an Error log, we should be able to cast the
 			// InfoLogger to be a Logger and call the actual Error method on
