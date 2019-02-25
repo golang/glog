@@ -31,32 +31,32 @@ func TestInfo(t *testing.T) {
 			expectedOutput: ` "level"=0 "msg"="test"  "akey"="avalue"
 `,
 		},
-		"should print duplicate keys with the same value": {
+		"should not print duplicate keys with the same value": {
 			klogr:         New().V(0),
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue", "akey", "avalue"},
-			expectedOutput: ` "level"=0 "msg"="test"  "akey"="avalue" "akey"="avalue"
+			expectedOutput: ` "level"=0 "msg"="test"  "akey"="avalue"
 `,
 		},
-		"should print duplicate keys with different values when all values are passed to Info": {
+		"should only print the last duplicate key when the values are passed to Info": {
 			klogr:         New().V(0),
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue", "akey", "avalue2"},
-			expectedOutput: ` "level"=0 "msg"="test"  "akey"="avalue" "akey"="avalue2"
+			expectedOutput: ` "level"=0 "msg"="test"  "akey"="avalue2"
 `,
 		},
-		"should print duplicate keys with the same value when one is set on logger": {
+		"should only print the duplicate key that is passed to Info if one was passed to the logger": {
 			klogr:         New().WithValues("akey", "avalue"),
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue"},
-			expectedOutput: ` "level"=0 "msg"="test" "akey"="avalue" "akey"="avalue"
+			expectedOutput: ` "level"=0 "msg"="test"  "akey"="avalue"
 `,
 		},
-		"should print duplicate keys with different values when one is set on logger": {
+		"should only print the key passed to Info when one is already set on the logger": {
 			klogr:         New().WithValues("akey", "avalue"),
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue2"},
-			expectedOutput: ` "level"=0 "msg"="test" "akey"="avalue" "akey"="avalue2"
+			expectedOutput: ` "level"=0 "msg"="test"  "akey"="avalue2"
 `,
 		},
 		"should print different log level if set": {
