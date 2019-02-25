@@ -59,6 +59,30 @@ func framesToCaller() int {
 	return 1 // something went wrong, this is safe
 }
 
+func trimDuplicates(kvLists ...[]interface{}) [][]interface{} {
+	seenKeys := map[interface{}]struct{}{}
+	outs := make([][]interface{}, len(kvLists))
+	for i := len(kvLists)-1; i >= 0; i-- {
+		outs[i] = []interface{}{}
+		kvList := kvLists[i]
+
+		// TODO: handle odd-length kvLists
+		for i2 := len(kvList) - 2; i2 >= 0; i2 -= 2 {
+			k := kvList[i2]
+			if _, ok := seenKeys[k]; ok {
+				continue
+			}
+			seenKeys[k] = struct{}{}
+			var v interface{}
+			if i2+1 < len(kvList) {
+				v = kvList[i2+1]
+			}
+			outs[i] = append([]interface{}{k, v}, outs[i]...)
+		}
+	}
+	return outs
+}
+
 func flatten(kvList ...interface{}) string {
 	keys := make([]string, 0, len(kvList))
 	vals := make(map[string]interface{}, len(kvList))
@@ -97,8 +121,9 @@ func (l klogger) Info(msg string, kvList ...interface{}) {
 	if l.Enabled() {
 		lvlStr := flatten("level", l.level)
 		msgStr := flatten("msg", msg)
-		fixedStr := flatten(l.values...)
-		userStr := flatten(kvList...)
+		trimmed := trimDuplicates(l.values, kvList)
+		fixedStr := flatten(trimmed[0]...)
+		userStr := flatten(trimmed[1]...)
 		klog.InfoDepth(framesToCaller(), l.prefix, " ", lvlStr, " ", msgStr, " ", fixedStr, " ", userStr)
 	}
 }
@@ -114,8 +139,9 @@ func (l klogger) Error(err error, msg string, kvList ...interface{}) {
 		loggableErr = err.Error()
 	}
 	errStr := flatten("error", loggableErr)
-	fixedStr := flatten(l.values...)
-	userStr := flatten(kvList...)
+	trimmed := trimDuplicates(l.values, kvList)
+	fixedStr := flatten(trimmed[0]...)
+	userStr := flatten(trimmed[1]...)
 	klog.ErrorDepth(framesToCaller(), l.prefix, " ", msgStr, " ", errStr, " ", fixedStr, " ", userStr)
 }
 
