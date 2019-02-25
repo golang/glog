@@ -694,10 +694,13 @@ func (buf *buffer) someDigits(i, d int) int {
 
 func (l *loggingT) println(s severity, logr logr.InfoLogger, args ...interface{}) {
 	buf, file, line := l.header(s, 0)
-	fmt.Fprintln(buf, args...)
+	// if logr is set, we clear the generated header as we rely on the backing
+	// logr implementation to print headers
 	if logr != nil {
-		logr.Info(buf.String())
+		l.putBuffer(buf)
+		buf = l.getBuffer()
 	}
+	fmt.Fprintln(buf, args...)
 	l.output(s, logr, buf, file, line, false)
 }
 
@@ -707,6 +710,12 @@ func (l *loggingT) print(s severity, logr logr.InfoLogger, args ...interface{}) 
 
 func (l *loggingT) printDepth(s severity, logr logr.InfoLogger, depth int, args ...interface{}) {
 	buf, file, line := l.header(s, depth)
+	// if logr is set, we clear the generated header as we rely on the backing
+	// logr implementation to print headers
+	if logr != nil {
+		l.putBuffer(buf)
+		buf = l.getBuffer()
+	}
 	fmt.Fprint(buf, args...)
 	if buf.Bytes()[buf.Len()-1] != '\n' {
 		buf.WriteByte('\n')
@@ -716,6 +725,12 @@ func (l *loggingT) printDepth(s severity, logr logr.InfoLogger, depth int, args 
 
 func (l *loggingT) printf(s severity, logr logr.InfoLogger, format string, args ...interface{}) {
 	buf, file, line := l.header(s, 0)
+	// if logr is set, we clear the generated header as we rely on the backing
+	// logr implementation to print headers
+	if logr != nil {
+		l.putBuffer(buf)
+		buf = l.getBuffer()
+	}
 	fmt.Fprintf(buf, format, args...)
 	if buf.Bytes()[buf.Len()-1] != '\n' {
 		buf.WriteByte('\n')
@@ -728,6 +743,12 @@ func (l *loggingT) printf(s severity, logr logr.InfoLogger, format string, args 
 // will also appear in the log file unless --logtostderr is set.
 func (l *loggingT) printWithFileLine(s severity, logr logr.InfoLogger, file string, line int, alsoToStderr bool, args ...interface{}) {
 	buf := l.formatHeader(s, file, line)
+	// if logr is set, we clear the generated header as we rely on the backing
+	// logr implementation to print headers
+	if logr != nil {
+		l.putBuffer(buf)
+		buf = l.getBuffer()
+	}
 	fmt.Fprint(buf, args...)
 	if buf.Bytes()[buf.Len()-1] != '\n' {
 		buf.WriteByte('\n')
