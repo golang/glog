@@ -65,8 +65,20 @@ func TestInfo(t *testing.T) {
 			expectedOutput: ` "level"=4 "msg"="test"  
 `,
 		},
+		"should correctly handle odd-numbers of KVs": {
+			text:          "test",
+			keysAndValues: []interface{}{"akey", "avalue", "akey2"},
+			expectedOutput: ` "level"=0 "msg"="test"  "akey"="avalue" "akey2"=null
+`,
+		},
+		"should correctly handle odd-numbers of KVs in both log values and Info args": {
+			klogr:         New().WithValues("basekey1", "basevar1", "basekey2"),
+			text:          "test",
+			keysAndValues: []interface{}{"akey", "avalue", "akey2"},
+			expectedOutput: ` "level"=0 "msg"="test" "basekey1"="basevar1" "basekey2"=null "akey"="avalue" "akey2"=null
+`,
+		},
 	}
-
 	for n, test := range tests {
 		t.Run(n, func(t *testing.T) {
 			klogr := test.klogr
