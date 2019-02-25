@@ -773,6 +773,14 @@ func (rb *redirectBuffer) Write(bytes []byte) (n int, err error) {
 	return rb.w.Write(bytes)
 }
 
+// SetLogger will set the backing logr implementation for klog.
+// If set, all log lines will be supressed from the regular Output, and
+// redirected to the logr implementation.
+// All log lines include the 'severity', 'file' and 'line' values attached as
+// structured logging values.
+// Use as:
+//   ...
+//   klog.SetLogger(zapr.NewLogger(zapLog))
 func SetLogger(logr logr.Logger) {
 	logging.logr = logr
 }
@@ -1164,10 +1172,10 @@ func newVerbose(level Level, b bool) Verbose {
 }
 
 // V reports whether verbosity at the call site is at least the requested level.
-// The returned value is a boolean of type Verbose, which implements Info, Infoln
+// The returned value is a struct of type Verbose, which implements Info, Infoln
 // and Infof. These methods will write to the Info log if called.
 // Thus, one may write either
-//	if klog.V(2) { klog.Info("log this") }
+//	if glog.V(2).Enabled() { klog.Info("log this") }
 // or
 //	klog.V(2).Info("log this")
 // The second form is shorter but the first is cheaper if logging is off because it does
@@ -1206,6 +1214,9 @@ func V(level Level) Verbose {
 	return newVerbose(level, false)
 }
 
+// Enabled will return true if this log level is enabled, guarded by the value
+// of v.
+// See the documentation of V for usage.
 func (v Verbose) Enabled() bool {
 	return v.enabled
 }
