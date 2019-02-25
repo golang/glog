@@ -779,7 +779,7 @@ func SetOutputBySeverity(name string, w io.Writer) {
 }
 
 // output writes the data to the log files and releases the buffer.
-func (l *loggingT) output(s severity, logr logr.InfoLogger, buf *buffer, file string, line int, alsoToStderr bool) {
+func (l *loggingT) output(s severity, log logr.InfoLogger, buf *buffer, file string, line int, alsoToStderr bool) {
 	l.mu.Lock()
 	if l.traceLocation.isSet() {
 		if l.traceLocation.match(file, line) {
@@ -787,8 +787,26 @@ func (l *loggingT) output(s severity, logr logr.InfoLogger, buf *buffer, file st
 		}
 	}
 	data := buf.Bytes()
-	if logr != nil {
-		logr.Info(string(data), "severity", severityName[s])
+	if l != nil {
+		keysAndValues := []interface{}{"severity", severityName[s]}
+		if s == errorLog {
+			// if this is an Error log, we should be able to cast the
+			// InfoLogger to be a Logger and call the actual Error method on
+			// the backing logger.
+			// TODO: we probably shouldn't always assume this is the case, as
+			// it may not be in some implementations of go-logr.
+			// Instead, we could construct a fake Logger struct that's backed
+			// by the appropriate V levels InfoLogger that implements Error, so
+			// that we can always call Error if the severity is 'errorLog' and
+			// have the log line routed by the 'fake' Logger implementation.
+			if log, ok := log.(logr.Logger); ok {
+				log.Error(nil, string(data), keysAndValues...)
+			} else {
+				log.Info(string(data), keysAndValues...)
+			}
+		} else {
+			log.Info(string(data), keysAndValues...)
+		}
 	} else if l.toStderr {
 		os.Stderr.Write(data)
 	} else {
