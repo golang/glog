@@ -874,7 +874,7 @@ func (sb *syncBuffer) Sync() error {
 
 func (sb *syncBuffer) Write(p []byte) (n int, err error) {
 	if sb.nbytes+uint64(len(p)) >= MaxSize {
-		if err := sb.rotateFile(time.Now()); err != nil {
+		if err := sb.rotateFile(time.Now(), false); err != nil {
 			sb.logger.exit(err)
 		}
 	}
@@ -887,13 +887,15 @@ func (sb *syncBuffer) Write(p []byte) (n int, err error) {
 }
 
 // rotateFile closes the syncBuffer's file and starts a new one.
-func (sb *syncBuffer) rotateFile(now time.Time) error {
+// The startup argument indicates whether this is the initial startup of klog.
+// If startup is true, existing files are opened for apending instead of truncated.
+func (sb *syncBuffer) rotateFile(now time.Time, startup bool) error {
 	if sb.file != nil {
 		sb.Flush()
 		sb.file.Close()
 	}
 	var err error
-	sb.file, _, err = create(severityName[sb.sev], now)
+	sb.file, _, err = create(severityName[sb.sev], now, startup)
 	sb.nbytes = 0
 	if err != nil {
 		return err
@@ -928,7 +930,7 @@ func (l *loggingT) createFiles(sev severity) error {
 			logger: l,
 			sev:    s,
 		}
-		if err := sb.rotateFile(now); err != nil {
+		if err := sb.rotateFile(now, true); err != nil {
 			return err
 		}
 		l.file[s] = sb
