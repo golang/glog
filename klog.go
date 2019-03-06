@@ -43,7 +43,7 @@
 //		Logs are written to standard error instead of to files.
 //	-alsologtostderr=false
 //		Logs are written to standard error as well as to files.
-//	-stderrthreshold=INFO
+//	-stderrthreshold=ERROR
 //		Log events at or above this severity are logged to standard
 //		error as well as to files.
 //	-log_dir=""
@@ -396,8 +396,8 @@ type flushSyncWriter interface {
 }
 
 func init() {
-	// Default stderrThreshold is INFO.
-	logging.stderrThreshold = infoLog
+	// Default stderrThreshold is ERROR.
+	logging.stderrThreshold = errorLog
 
 	logging.setVState(0, nil, false)
 	go logging.flushDaemon()
@@ -739,9 +739,7 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 	}
 	data := buf.Bytes()
 	if l.toStderr {
-		if s >= l.stderrThreshold.get() {
-			os.Stderr.Write(data)
-		}
+		os.Stderr.Write(data)
 	} else {
 		if alsoToStderr || l.alsoToStderr || s >= l.stderrThreshold.get() {
 			os.Stderr.Write(data)
