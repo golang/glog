@@ -439,10 +439,10 @@ type loggingT struct {
 	toStderr     bool // The -logtostderr flag.
 	alsoToStderr bool // The -alsologtostderr flag.
 
-	dailyRolling bool // The -alsologtostderr flag.
+	dailyRolling bool // The -dailyRolling flag.
 
 	// Level flag. Handled atomically.
-	stderrThreshold severity // The -dailyRolling flag.
+	stderrThreshold severity // The -stderrThreshold flag.
 
 	// freeList is a list of byte buffers, maintained under freeListMu.
 	freeList *buffer
@@ -779,13 +779,13 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 func timeoutFlush(timeout time.Duration) {
 	done := make(chan bool, 1)
 	go func() {
-		Flush() // calls glog.lockAndFlushAll()
+		Flush() // calls logging.lockAndFlushAll()
 		done <- true
 	}()
 	select {
 	case <-done:
 	case <-time.After(timeout):
-		fmt.Fprintln(os.Stderr, "logger: Flush took longer than", timeout)
+		fmt.Fprintln(os.Stderr, "glog: Flush took longer than", timeout)
 	}
 }
 
@@ -835,10 +835,10 @@ func (l *loggingT) exit(err error) {
 type syncBuffer struct {
 	logger *loggingT
 	*bufio.Writer
-	file        *os.File
-	sev         severity
-	nbytes      uint64 // The number of bytes written to this file
-	createdDate string
+	file       *os.File
+	sev        severity
+	nbytes     uint64 // The number of bytes written to this file
+	createDate string
 }
 
 func (sb *syncBuffer) Sync() error {
@@ -849,7 +849,7 @@ func (sb *syncBuffer) Write(p []byte) (n int, err error) {
 	if logging.dailyRolling {
 		fileInfo, _ := sb.file.Stat()
 		// daily rotate
-		if sb.createdDate != string(p[1:5]) || fileInfo.Size() > 104857600 {
+		if sb.createDate != string(p[1:5]) || fileInfo.Size() > 104857600 {
 			if err := sb.rotateFile(time.Now()); err != nil {
 				sb.logger.exit(err)
 			}
@@ -882,7 +882,7 @@ func (sb *syncBuffer) rotateFile(now time.Time) error {
 
 	sb.Writer = bufio.NewWriterSize(sb.file, bufferSize)
 	_, month, day := now.Date()
-	sb.createdDate = fmt.Sprintf("%02d%02d", month, day)
+	sb.createDate = fmt.Sprintf("%02d%02d", month, day)
 
 	// Write header.
 	var buf bytes.Buffer
