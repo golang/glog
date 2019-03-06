@@ -16,7 +16,7 @@
 
 // File I/O for logs.
 
-package logger
+package glog
 
 import (
 	"errors"
@@ -80,7 +80,7 @@ func shortHostname(hostname string) string {
 
 // logName returns a new log file name containing tag, with start time t, and
 // the name for the symlink for tag.
-func logName2(tag string, t time.Time) (name, link string) {
+func logName(tag string, t time.Time) (name, link string) {
 	name = fmt.Sprintf("%s.%s.%s.log.%s.%04d%02d%02d-%02d%02d%02d.%d",
 		program,
 		host,
@@ -95,18 +95,6 @@ func logName2(tag string, t time.Time) (name, link string) {
 		pid)
 	return name, program + "." + tag
 }
-func logName(tag string, t time.Time) (name string) {
-	name = fmt.Sprintf("%s.%d.%04d%02d%02d-%02d%02d%02d.log",
-		tag,
-		pid,
-		t.Year(),
-		t.Month(),
-		t.Day(),
-		t.Hour(),
-		t.Minute(),
-		t.Second())
-	return name
-}
 
 var onceLogDirs sync.Once
 
@@ -119,15 +107,15 @@ func create(tag string, t time.Time) (f *os.File, filename string, err error) {
 	if len(logDirs) == 0 {
 		return nil, "", errors.New("log: no log dirs")
 	}
-	name := logName(tag, t)
+	name, link := logName(tag, t)
 	var lastErr error
 	for _, dir := range logDirs {
 		fname := filepath.Join(dir, name)
 		f, err := os.Create(fname)
 		if err == nil {
-			//			symlink := filepath.Join(dir, link)
-			//			os.Remove(symlink)        // ignore err
-			//			os.Symlink(name, symlink) // ignore err
+			symlink := filepath.Join(dir, link)
+			os.Remove(symlink)        // ignore err
+			os.Symlink(name, symlink) // ignore err
 			return f, fname, nil
 		}
 		lastErr = err

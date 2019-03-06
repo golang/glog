@@ -1,4 +1,4 @@
-// Go support for leveled logs, analogous to https://code.google.com/p/google-logger/
+// Go support for leveled logs, analogous to https://code.google.com/p/google-glog/
 //
 // Copyright 2013 Google Inc. All Rights Reserved.
 //
@@ -14,23 +14,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package logger implements logging analogous to the Google-internal C++ INFO/ERROR/V setup.
+// Package glog implements logging analogous to the Google-internal C++ INFO/ERROR/V setup.
 // It provides functions Info, Warning, Error, Fatal, plus formatting variants such as
 // Infof. It also provides V-style logging controlled by the -v and -vmodule=file=2 flags.
 //
 // Basic examples:
 //
-//	logger.Info("Prepare to repel boarders")
+//	glog.Info("Prepare to repel boarders")
 //
-//	logger.Fatalf("Initialization failed: %s", err)
+//	glog.Fatalf("Initialization failed: %s", err)
 //
 // See the documentation for the V function for an explanation of these examples:
 //
-//	if logger.V(2) {
-//		logger.Info("Starting transaction...")
+//	if glog.V(2) {
+//		glog.Info("Starting transaction...")
 //	}
 //
-//	logger.V(2).Infoln("Processed", nItems, "elements")
+//	glog.V(2).Infoln("Processed", nItems, "elements")
 //
 // Log output is buffered and written periodically using Flush. Programs
 // should call Flush before exiting to guarantee all log output is written.
@@ -68,7 +68,7 @@
 //			-vmodule=gopher*=3
 //		sets the V level to 3 in all Go files whose names begin "gopher".
 //
-package logger
+package glog
 
 import (
 	"bufio"
@@ -101,21 +101,22 @@ var outputSeverity severity
 const (
 	debugLog severity = iota
 	infoLog
+	warningLog
 	errorLog
 	fatalLog
 	numSeverity = 5
 )
 
-const severityChar = "DIEF"
+const severityChar = "DIWEF"
 
 var severityName = []string{
-	debugLog: "DEBUG",
-	infoLog:  "INFO",
-	errorLog: "ERROR",
-	fatalLog: "FATAL",
+	debugLog:   "DEBUG",
+	infoLog:    "INFO",
+	warningLog: "WARNING",
+	errorLog:   "ERROR",
+	fatalLog:   "FATAL",
 }
 
-//测试tag
 // get returns the value of the severity.
 func (s *severity) get() severity {
 	return severity(atomic.LoadInt32((*int32)(s)))
@@ -190,13 +191,14 @@ func (s *OutputStats) Bytes() int64 {
 // Stats tracks the number of lines of output and number of bytes
 // per severity level. Values must be read with atomic.LoadInt64.
 var Stats struct {
-	Debug, Info, Error OutputStats
+	Debug, Info, Warning, Error OutputStats
 }
 
 var severityStats = [numSeverity]*OutputStats{
-	debugLog: &Stats.Debug,
-	infoLog:  &Stats.Info,
-	errorLog: &Stats.Error,
+	debugLog:   &Stats.Debug,
+	infoLog:    &Stats.Info,
+	warningLog: &Stats.Warning,
+	errorLog:   &Stats.Error,
 }
 
 // Level is exported because it appears in the arguments to V and is
@@ -437,10 +439,10 @@ type loggingT struct {
 	toStderr     bool // The -logtostderr flag.
 	alsoToStderr bool // The -alsologtostderr flag.
 
-	dailyRolling bool
+	dailyRolling bool // The -alsologtostderr flag.
 
 	// Level flag. Handled atomically.
-	stderrThreshold severity // The -stderrthreshold flag.
+	stderrThreshold severity // The -dailyRolling flag.
 
 	// freeList is a list of byte buffers, maintained under freeListMu.
 	freeList *buffer
@@ -726,6 +728,9 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 		case errorLog:
 			l.file[errorLog].Write(data)
 			fallthrough
+		case warningLog:
+			l.file[warningLog].Write(data)
+			fallthrough
 		case infoLog:
 			l.file[infoLog].Write(data)
 			fallthrough
@@ -769,12 +774,12 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 
 // timeoutFlush calls Flush and returns when it completes or after timeout
 // elapses, whichever happens first.  This is needed because the hooks invoked
-// by Flush may deadlock when logger.Fatal is called from a hook that holds
+// by Flush may deadlock when glog.Fatal is called from a hook that holds
 // a lock.
 func timeoutFlush(timeout time.Duration) {
 	done := make(chan bool, 1)
 	go func() {
-		Flush() // calls logging.lockAndFlushAll()
+		Flush() // calls glog.lockAndFlushAll()
 		done <- true
 	}()
 	select {
@@ -843,7 +848,7 @@ func (sb *syncBuffer) Sync() error {
 func (sb *syncBuffer) Write(p []byte) (n int, err error) {
 	if logging.dailyRolling {
 		fileInfo, _ := sb.file.Stat()
-		//每天创新创建日志文件或者日志文件打印100M
+		// daily rotate
 		if sb.createdDate != string(p[1:5]) || fileInfo.Size() > 104857600 {
 			if err := sb.rotateFile(time.Now()); err != nil {
 				sb.logger.exit(err)
@@ -884,7 +889,7 @@ func (sb *syncBuffer) rotateFile(now time.Time) error {
 	fmt.Fprintf(&buf, "Log file created at: %s\n", now.Format("2006/01/02 15:04:05"))
 	fmt.Fprintf(&buf, "Running on machine: %s\n", host)
 	fmt.Fprintf(&buf, "Binary: Built with %s %s for %s/%s\n", runtime.Compiler, runtime.Version(), runtime.GOOS, runtime.GOARCH)
-	fmt.Fprintf(&buf, "Log line format: [DIEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg\n")
+	fmt.Fprintf(&buf, "Log line format: [DIWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg\n")
 	n, err := sb.file.Write(buf.Bytes())
 	sb.nbytes += uint64(n)
 	return err
@@ -914,7 +919,7 @@ func (l *loggingT) createFiles(sev severity) error {
 	return nil
 }
 
-var flushInterval time.Duration = 5 * time.Second
+const flushInterval = 30 * time.Second
 
 // flushDaemon periodically flushes the log file buffers.
 func (l *loggingT) flushDaemon() {
@@ -1025,9 +1030,9 @@ type Verbose bool
 // The returned value is a boolean of type Verbose, which implements Info, Infoln
 // and Infof. These methods will write to the Info log if called.
 // Thus, one may write either
-//	if logger.V(2) { logger.Info("log this") }
+//	if glog.V(2) { glog.Info("log this") }
 // or
-//	logger.V(2).Info("log this")
+//	glog.V(2).Info("log this")
 // The second form is shorter but the first is cheaper if logging is off because it does
 // not evaluate its arguments.
 //
@@ -1080,28 +1085,32 @@ func (v Verbose) Infoln(args ...interface{}) {
 	}
 }
 
+// Debug logs to the DEBUG log.
+func Debug(args ...interface{}) {
+	logging.print(debugLog, args...)
+}
+
+// DebugDepth logs to the DEBUG log.
+func DebugDepth(depth int, args ...interface{}) {
+	logging.printDepth(debugLog, depth, args...)
+}
+
+// DebugDepth logs to the DEBUG log.
+func Debugln(args ...interface{}) {
+	logging.println(debugLog, args...)
+}
+
+// Debugf logs to the DEBUG log.
+func Debugf(format string, args ...interface{}) {
+	logging.printf(debugLog, format, args...)
+}
+
 // Infof is equivalent to the global Infof function, guarded by the value of v.
 // See the documentation of V for usage.
 func (v Verbose) Infof(format string, args ...interface{}) {
 	if v {
 		logging.printf(infoLog, format, args...)
 	}
-}
-
-func Debug(args ...interface{}) {
-	logging.print(debugLog, args...)
-}
-
-func DebugDepth(depth int, args ...interface{}) {
-	logging.printDepth(debugLog, depth, args...)
-}
-
-func Debugln(args ...interface{}) {
-	logging.println(debugLog, args...)
-}
-
-func Debugf(format string, args ...interface{}) {
-	logging.printf(debugLog, format, args...)
 }
 
 // Info logs to the INFO log.
@@ -1126,6 +1135,30 @@ func Infoln(args ...interface{}) {
 // Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
 func Infof(format string, args ...interface{}) {
 	logging.printf(infoLog, format, args...)
+}
+
+// Warning logs to the WARNING and INFO logs.
+// Arguments are handled in the manner of fmt.Print; a newline is appended if missing.
+func Warning(args ...interface{}) {
+	logging.print(warningLog, args...)
+}
+
+// WarningDepth acts as Warning but uses depth to determine which call frame to log.
+// WarningDepth(0, "msg") is the same as Warning("msg").
+func WarningDepth(depth int, args ...interface{}) {
+	logging.printDepth(warningLog, depth, args...)
+}
+
+// Warningln logs to the WARNING and INFO logs.
+// Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
+func Warningln(args ...interface{}) {
+	logging.println(warningLog, args...)
+}
+
+// Warningf logs to the WARNING and INFO logs.
+// Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
+func Warningf(format string, args ...interface{}) {
+	logging.printf(warningLog, format, args...)
 }
 
 // Error logs to the ERROR, WARNING, and INFO logs.
