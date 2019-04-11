@@ -339,7 +339,6 @@ func TestRollover(t *testing.T) {
 	}
 	defer func(previous uint64) { MaxSize = previous }(MaxSize)
 	MaxSize = 512
-
 	Info("x") // Be sure we have a file.
 	info, ok := logging.file[infoLog].(*syncBuffer)
 	if !ok {
@@ -370,7 +369,7 @@ func TestRollover(t *testing.T) {
 	if fname0 == fname1 {
 		t.Errorf("info.f.Name did not change: %v", fname0)
 	}
-	if info.nbytes >= MaxSize {
+	if info.nbytes >= info.maxbytes {
 		t.Errorf("file size was not reset: %d", info.nbytes)
 	}
 }
@@ -485,5 +484,52 @@ func BenchmarkHeader(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf, _, _ := logging.header(infoLog, 0)
 		logging.putBuffer(buf)
+	}
+}
+
+// Test the logic on checking log size limitation.
+func TestFileSizeCheck(t *testing.T) {
+	setFlags()
+	testData := map[string]struct {
+		testLogFile          string
+		testLogFileMaxSizeMB uint64
+		testCurrentSize      uint64
+		expectedResult       bool
+	}{
+		"logFile not specified, exceeds max size": {
+			testLogFile:          "",
+			testLogFileMaxSizeMB: 1,
+			testCurrentSize:      1024 * 1024 * 2000, //exceeds the maxSize
+			expectedResult:       true,
+		},
+
+		"logFile not specified, not exceeds max size": {
+			testLogFile:          "",
+			testLogFileMaxSizeMB: 1,
+			testCurrentSize:      1024 * 1024 * 1000, //smaller than the maxSize
+			expectedResult:       false,
+		},
+		"logFile specified, exceeds max size": {
+			testLogFile:          "/tmp/test.log",
+			testLogFileMaxSizeMB: 500,                // 500MB
+			testCurrentSize:      1024 * 1024 * 1000, //exceeds the logFileMaxSizeMB
+			expectedResult:       true,
+		},
+		"logFile specified, not exceeds max size": {
+			testLogFile:          "/tmp/test.log",
+			testLogFileMaxSizeMB: 500,               // 500MB
+			testCurrentSize:      1024 * 1024 * 300, //smaller than the logFileMaxSizeMB
+			expectedResult:       false,
+		},
+	}
+
+	for name, test := range testData {
+		logging.logFile = test.testLogFile
+		logging.logFileMaxSizeMB = test.testLogFileMaxSizeMB
+		actualResult := test.testCurrentSize >= CalculateMaxSize()
+		if test.expectedResult != actualResult {
+			t.Fatalf("Error on test case '%v': Was expecting result equals %v, got %v",
+				name, test.expectedResult, actualResult)
+		}
 	}
 }
