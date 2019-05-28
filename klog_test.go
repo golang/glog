@@ -22,13 +22,62 @@ import (
 	"fmt"
 	"io/ioutil"
 	stdLog "log"
+	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
+
+// Test that no duplicated logs are written to logfile.
+func TestDedupLogsInSingleLogFileMode(t *testing.T) {
+	setFlags()
+
+	tmpLogFile := "tmp-klog"
+	errMsg := "Test. This is an error"
+	tmpFile, err := ioutil.TempFile("", tmpLogFile)
+	defer deleteFile(tmpFile.Name())
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	logging.logFile = tmpFile.Name()
+	logging.toStderr = false
+	logging.alsoToStderr = false
+	logging.skipLogHeaders = true
+	Error(errMsg)
+	logging.flushAll()
+
+	f, err := os.Open(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("error %v", err)
+	}
+	content := make([]byte, 1000)
+	f.Read(content)
+	tmpFile.Close()
+
+	// the log message is of format (w/ header): Lmmdd hh:mm:ss.uuuuuu threadid file:line] %v
+	expectedRegx := fmt.Sprintf(
+		`E[0-9]{4}\s+[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{6}\s+[0-9]+\s+klog_test.go:[0-9]+]\s+%v`, errMsg)
+	re := regexp.MustCompile(expectedRegx)
+	actual := string(content)
+	// Verify the logFile doesn't have duplicated log items. If log-file not specified, Error log will also show
+	// up in Warning and Info log.
+	if !re.MatchString(actual) {
+		t.Fatalf("Was expecting Error and Fatal logs both show up and show up only once, result equals\n  %v",
+			actual)
+	}
+}
+
+func deleteFile(path string) {
+	var err = os.Remove(path)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+}
 
 // TODO: This test package should be refactored so that tests cannot
 // interfere with each-other.
@@ -88,6 +137,18 @@ func contains(s severity, str string, t *testing.T) bool {
 // setFlags configures the logging flags how the test expects them.
 func setFlags() {
 	logging.toStderr = false
+	logging.logFile = ""
+	logging.alsoToStderr = false
+	logging.skipLogHeaders = false
+
+	for s := fatalLog; s >= infoLog; s-- {
+		if logging.file[s] != nil {
+			os.Remove(logging.file[s].(*syncBuffer).file.Name())
+			logging.file[s] = nil
+		}
+	}
+	logging.singleModeFile = nil
+
 }
 
 // Test that Info works as advertised.
@@ -401,7 +462,7 @@ func TestOpenAppendOnStart(t *testing.T) {
 
 	// Logging creates the file
 	Info(x)
-	_, ok := logging.file[infoLog].(*syncBuffer)
+	_, ok := logging.singleModeFile.(*syncBuffer)
 	if !ok {
 		t.Fatal("info wasn't created")
 	}
@@ -411,6 +472,7 @@ func TestOpenAppendOnStart(t *testing.T) {
 	// ensure we wrote what we expected
 	logging.flushAll()
 	b, err := ioutil.ReadFile(logging.logFile)
+
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
