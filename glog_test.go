@@ -76,7 +76,7 @@ func contents(s severity) string {
 }
 
 // contains reports whether the string is contained in the log.
-func contains(s severity, str string, t *testing.T) bool {
+func contains(s severity, str string, _ *testing.T) bool {
 	return strings.Contains(contents(s), str)
 }
 
@@ -238,8 +238,8 @@ func TestWarning(t *testing.T) {
 func TestV(t *testing.T) {
 	setFlags()
 	defer logging.swap(logging.newBuffers())
-	logging.verbosity.Set("2")
-	defer logging.verbosity.Set("0")
+	_ = logging.verbosity.Set("2")
+	defer func() { _ = logging.verbosity.Set("0") }()
 	V(2).Info("test")
 	if !contains(infoLog, "I", t) {
 		t.Errorf("Info has wrong character: %q", contents(infoLog))
@@ -253,8 +253,8 @@ func TestV(t *testing.T) {
 func TestVmoduleOn(t *testing.T) {
 	setFlags()
 	defer logging.swap(logging.newBuffers())
-	logging.vmodule.Set("glog_test=2")
-	defer logging.vmodule.Set("")
+	_ = logging.vmodule.Set("glog_test=2")
+	defer func() { _ = logging.vmodule.Set("") }()
 	if !V(1) {
 		t.Error("V not enabled for 1")
 	}
@@ -277,8 +277,8 @@ func TestVmoduleOn(t *testing.T) {
 func TestVmoduleOff(t *testing.T) {
 	setFlags()
 	defer logging.swap(logging.newBuffers())
-	logging.vmodule.Set("notthisfile=2")
-	defer logging.vmodule.Set("")
+	_ = logging.vmodule.Set("notthisfile=2")
+	defer func() { _ = logging.vmodule.Set("") }()
 	for i := 1; i <= 3; i++ {
 		if V(Level(i)) {
 			t.Errorf("V enabled for %d", i)
@@ -312,8 +312,8 @@ var vGlobs = map[string]bool{
 func testVmoduleGlob(pat string, match bool, t *testing.T) {
 	setFlags()
 	defer logging.swap(logging.newBuffers())
-	defer logging.vmodule.Set("")
-	logging.vmodule.Set(pat)
+	defer func() { _ = logging.vmodule.Set("") }()
+	_ = logging.vmodule.Set(pat)
 	if V(2) != Verbose(match) {
 		t.Errorf("incorrect match for %q: got %t expected %t", pat, V(2), match)
 	}

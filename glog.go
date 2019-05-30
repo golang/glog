@@ -271,7 +271,7 @@ func (m *moduleSpec) String() string {
 	var b bytes.Buffer
 	for i, f := range m.filter {
 		if i > 0 {
-			b.WriteRune(',')
+			_, _ = b.WriteRune(',')
 		}
 		fmt.Fprintf(&b, "%s=%d", f.pattern, f.level)
 	}
@@ -589,13 +589,13 @@ func (l *loggingT) formatHeader(s severity, file string, line int) *buffer {
 	buf.tmp[21] = ' '
 	buf.nDigits(7, 22, pid, ' ') // TODO: should be TID
 	buf.tmp[29] = ' '
-	buf.Write(buf.tmp[:30])
-	buf.WriteString(file)
+	_, _ = buf.Write(buf.tmp[:30])
+	_, _ = buf.WriteString(file)
 	buf.tmp[0] = ':'
 	n := buf.someDigits(1, line)
 	buf.tmp[n+1] = ']'
 	buf.tmp[n+2] = ' '
-	buf.Write(buf.tmp[:n+3])
+	_, _ = buf.Write(buf.tmp[:n+3])
 	return buf
 }
 
@@ -654,7 +654,7 @@ func (l *loggingT) printDepth(s severity, depth int, args ...interface{}) {
 	buf, file, line := l.header(s, depth)
 	fmt.Fprint(buf, args...)
 	if buf.Bytes()[buf.Len()-1] != '\n' {
-		buf.WriteByte('\n')
+		_ = buf.WriteByte('\n')
 	}
 	l.output(s, buf, file, line, false)
 }
@@ -663,7 +663,7 @@ func (l *loggingT) printf(s severity, format string, args ...interface{}) {
 	buf, file, line := l.header(s, 0)
 	fmt.Fprintf(buf, format, args...)
 	if buf.Bytes()[buf.Len()-1] != '\n' {
-		buf.WriteByte('\n')
+		_ = buf.WriteByte('\n')
 	}
 	l.output(s, buf, file, line, false)
 }
@@ -675,7 +675,7 @@ func (l *loggingT) printWithFileLine(s severity, file string, line int, alsoToSt
 	buf := l.formatHeader(s, file, line)
 	fmt.Fprint(buf, args...)
 	if buf.Bytes()[buf.Len()-1] != '\n' {
-		buf.WriteByte('\n')
+		_ = buf.WriteByte('\n')
 	}
 	l.output(s, buf, file, line, alsoToStderr)
 }
@@ -685,50 +685,50 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 	l.mu.Lock()
 	if l.traceLocation.isSet() {
 		if l.traceLocation.match(file, line) {
-			buf.Write(stacks(false))
+			_, _ = buf.Write(stacks(false))
 		}
 	}
 	data := buf.Bytes()
 	if !flag.Parsed() {
-		os.Stderr.Write([]byte("ERROR: logging before flag.Parse: "))
-		os.Stderr.Write(data)
+		_, _ = os.Stderr.Write([]byte("ERROR: logging before flag.Parse: "))
+		_, _ = os.Stderr.Write(data)
 	} else if l.toStderr {
 		if l.redirectStderrToStdout {
-			os.Stdout.Write(data)
+			_, _ = os.Stdout.Write(data)
 		} else {
-			os.Stderr.Write(data)
+			_, _ = os.Stderr.Write(data)
 		}
 	} else {
 		if alsoToStderr || l.alsoToStderr || s >= l.stderrThreshold.get() {
 			if l.redirectStderrToStdout {
-				os.Stdout.Write(data)
+				_, _ = os.Stdout.Write(data)
 			} else {
-				os.Stderr.Write(data)
+				_, _ = os.Stderr.Write(data)
 			}
 		}
 		if l.file[s] == nil {
 			if err := l.createFiles(s); err != nil {
 				// Make sure the message appears somewhere.
 				if l.redirectStderrToStdout {
-					os.Stdout.Write(data)
+					_, _ = os.Stdout.Write(data)
 				} else {
-					os.Stderr.Write(data)
+					_, _ = os.Stderr.Write(data)
 				}
 				l.exit(err)
 			}
 		}
 		switch s {
 		case fatalLog:
-			l.file[fatalLog].Write(data)
+			_, _ = l.file[fatalLog].Write(data)
 			fallthrough
 		case errorLog:
-			l.file[errorLog].Write(data)
+			_, _ = l.file[errorLog].Write(data)
 			fallthrough
 		case warningLog:
-			l.file[warningLog].Write(data)
+			_, _ = l.file[warningLog].Write(data)
 			fallthrough
 		case infoLog:
-			l.file[infoLog].Write(data)
+			_, _ = l.file[infoLog].Write(data)
 		}
 	}
 	if s == fatalLog {
@@ -743,14 +743,14 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 		// If -logtostderr has been specified, the loop below will do that anyway
 		// as the first stack in the full dump.
 		if !l.toStderr {
-			os.Stderr.Write(stacks(false))
+			_, _ = os.Stderr.Write(stacks(false))
 		}
 		// Write the stack trace for all goroutines to the files.
 		trace := stacks(true)
 		logExitFunc = func(error) {} // If we get a write error, we'll still exit below.
 		for log := fatalLog; log >= infoLog; log-- {
 			if f := l.file[log]; f != nil { // Can be nil if -logtostderr is set.
-				f.Write(trace)
+				_, _ = f.Write(trace)
 			}
 		}
 		l.mu.Unlock()
@@ -839,7 +839,7 @@ func (sb *syncBuffer) Sync() error {
 
 func (sb *syncBuffer) Write(p []byte) (n int, err error) {
 	if sb.nbytes+uint64(len(p)) >= MaxSize {
-		if err := sb.rotateFile(time.Now()); err != nil {
+		if err = sb.rotateFile(time.Now()); err != nil {
 			sb.logger.exit(err)
 		}
 	}
@@ -854,8 +854,8 @@ func (sb *syncBuffer) Write(p []byte) (n int, err error) {
 // rotateFile closes the syncBuffer's file and starts a new one.
 func (sb *syncBuffer) rotateFile(now time.Time) error {
 	if sb.file != nil {
-		sb.Flush()
-		sb.file.Close()
+		_ = sb.Flush()
+		_ = sb.file.Close()
 	}
 	var err error
 	sb.file, _, err = create(severityName[sb.sev], now)
@@ -926,8 +926,8 @@ func (l *loggingT) flushAll() {
 	for s := fatalLog; s >= infoLog; s-- {
 		file := l.file[s]
 		if file != nil {
-			file.Flush() // ignore error
-			file.Sync()  // ignore error
+			_ = file.Flush() // ignore error
+			_ = file.Sync()  // ignore error
 		}
 	}
 }
