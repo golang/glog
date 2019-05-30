@@ -905,9 +905,10 @@ var flushInterval time.Duration
 
 // flushDaemon periodically flushes the log file buffers.
 func (l *loggingT) flushDaemon() {
+	c := time.Tick(flushInterval)
 	for {
 		l.lockAndFlushAll()
-		<-time.Tick(flushInterval)
+		<-c
 	}
 }
 
