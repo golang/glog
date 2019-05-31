@@ -16,7 +16,7 @@
 
 // Package glog implements logging analogous to the Google-internal C++ INFO/ERROR/V setup.
 // It provides functions Info, Warning, Error, Fatal, plus formatting variants such as
-// Infof. It also provides V-style logging controlled by the -v and -vmodule=file=2 flags.
+// Infof. It also provides V-style logging controlled by the -vlevel and -vmodule=file=2 flags.
 //
 // Basic examples:
 //
@@ -43,6 +43,10 @@
 //		Logs are written to standard error instead of to files.
 //	-alsologtostderr=false
 //		Logs are written to standard error as well as to files.
+//  -stderrtostdout=false
+//    Logs are written to stdout instead of stderr. Use in combination with
+//    -logtostderr or -alsologtostderr. Stack traces for fatal logs,
+//    or glog errors will still be written to stderr though.
 //	-stderrthreshold=ERROR
 //		Log events at or above this severity are logged to standard
 //		error as well as to files.
@@ -59,7 +63,7 @@
 //		a stack trace will be written to the Info log whenever execution
 //		hits that statement. (Unlike with -vmodule, the ".go" must be
 //		present.)
-//	-v=0
+//	-vlevel=0
 //		Enable V-leveled logging at the specified level.
 //	-vmodule=""
 //		The syntax of the argument is a comma-separated list of pattern=N,
@@ -67,6 +71,8 @@
 //		"glob" pattern and N is a V level. For instance,
 //			-vmodule=gopher*=3
 //		sets the V level to 3 in all Go files whose names begin "gopher".
+//	-flushinterval=10s
+//		Specifies the interval in which the log file buffer is flushed.
 //
 package glog
 
@@ -193,13 +199,13 @@ var severityStats = [numSeverity]*OutputStats{
 // the type of the v flag, which can be set programmatically.
 // It's a distinct type because we want to discriminate it from logType.
 // Variables of type level are only changed under logging.mu.
-// The -v flag is read only with atomic ops, so the state of the logging
+// The -vlevel flag is read only with atomic ops, so the state of the logging
 // module is consistent.
 
 // Level is treated as a sync/atomic int32.
 
 // Level specifies a level of verbosity for V logs. *Level implements
-// flag.Value; the -v flag is of type Level and should be modified
+// flag.Value; the -vlevel flag is of type Level and should be modified
 // only through the flag.Value interface.
 type Level int32
 
@@ -398,15 +404,20 @@ type flushSyncWriter interface {
 func init() {
 	flag.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
-	flag.Var(&logging.verbosity, "v", "log level for V logs")
+	flag.BoolVar(&logging.redirectStderrToStdout, "stderrtostdout", false, "log to stdout instead of stderr")
+	flag.Var(&logging.verbosity, "vlevel", "log verbosity level for V logs")
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
+	flag.DurationVar(&flushInterval, "flushinterval", 10*time.Second, "interval to flush log file buffers")
 
 	// Default stderrThreshold is ERROR.
 	logging.stderrThreshold = errorLog
 
 	logging.setVState(0, nil, false)
+
+	// at this time flushInterval defaults to flag default. as soon as flags are parsed
+	// though and the initial flushInteral passes by, the actual flushInterval kicks in.
 	go logging.flushDaemon()
 }
 
@@ -420,8 +431,9 @@ type loggingT struct {
 	// Boolean flags. Not handled atomically because the flag.Value interface
 	// does not let us avoid the =true, and that shorthand is necessary for
 	// compatibility. TODO: does this matter enough to fix? Seems unlikely.
-	toStderr     bool // The -logtostderr flag.
-	alsoToStderr bool // The -alsologtostderr flag.
+	toStderr               bool // The -logtostderr flag.
+	alsoToStderr           bool // The -alsologtostderr flag.
+	redirectStderrToStdout bool // The -stderrtostdout flag.
 
 	// Level flag. Handled atomically.
 	stderrThreshold severity // The -stderrthreshold flag.
@@ -452,7 +464,7 @@ type loggingT struct {
 	// These flags are modified only under lock, although verbosity may be fetched
 	// safely using atomic.LoadInt32.
 	vmodule   moduleSpec // The state of the -vmodule flag.
-	verbosity Level      // V logging level, the value of the -v flag/
+	verbosity Level      // V logging level, the value of the -vlevel flag
 }
 
 // buffer holds a byte Buffer for reuse. The zero value is ready for use.
@@ -538,9 +550,10 @@ func (l *loggingT) header(s severity, depth int) (*buffer, string, int) {
 		file = "???"
 		line = 1
 	} else {
-		slash := strings.LastIndex(file, "/")
-		if slash >= 0 {
-			file = file[slash+1:]
+		// remove "$GOPATH" from file, meaning return everything after `src/`
+		fileParts := strings.SplitAfterN(file, "src/", 2)
+		if len(fileParts) == 2 {
+			file = fileParts[1]
 		}
 	}
 	return l.formatHeader(s, file, line), file, line
@@ -680,14 +693,27 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 		os.Stderr.Write([]byte("ERROR: logging before flag.Parse: "))
 		os.Stderr.Write(data)
 	} else if l.toStderr {
-		os.Stderr.Write(data)
+		if l.redirectStderrToStdout {
+			os.Stdout.Write(data)
+		} else {
+			os.Stderr.Write(data)
+		}
 	} else {
 		if alsoToStderr || l.alsoToStderr || s >= l.stderrThreshold.get() {
-			os.Stderr.Write(data)
+			if l.redirectStderrToStdout {
+				os.Stdout.Write(data)
+			} else {
+				os.Stderr.Write(data)
+			}
 		}
 		if l.file[s] == nil {
 			if err := l.createFiles(s); err != nil {
-				os.Stderr.Write(data) // Make sure the message appears somewhere.
+				// Make sure the message appears somewhere.
+				if l.redirectStderrToStdout {
+					os.Stdout.Write(data)
+				} else {
+					os.Stderr.Write(data)
+				}
 				l.exit(err)
 			}
 		}
@@ -875,12 +901,13 @@ func (l *loggingT) createFiles(sev severity) error {
 	return nil
 }
 
-const flushInterval = 30 * time.Second
+var flushInterval time.Duration
 
 // flushDaemon periodically flushes the log file buffers.
 func (l *loggingT) flushDaemon() {
-	for _ = range time.NewTicker(flushInterval).C {
+	for {
 		l.lockAndFlushAll()
+		<-time.Tick(flushInterval)
 	}
 }
 
@@ -993,8 +1020,8 @@ type Verbose bool
 // not evaluate its arguments.
 //
 // Whether an individual call to V generates a log record depends on the setting of
-// the -v and --vmodule flags; both are off by default. If the level in the call to
-// V is at least the value of -v, or of -vmodule for the source file containing the
+// the -vlevel and --vmodule flags; both are off by default. If the level in the call to
+// V is at least the value of -vlevel, or of -vmodule for the source file containing the
 // call, the V call will log.
 func V(level Level) Verbose {
 	// This function tries hard to be cheap unless there's work to do.
@@ -1046,6 +1073,14 @@ func (v Verbose) Infoln(args ...interface{}) {
 func (v Verbose) Infof(format string, args ...interface{}) {
 	if v {
 		logging.printf(infoLog, format, args...)
+	}
+}
+
+// InfoDepth is equivalent to the global InfoDepth function, guarded by the value of v.
+// See the documentation of V for usage.
+func (v Verbose) InfoDepth(depth int, args ...interface{}) {
+	if v {
+		logging.printDepth(infoLog, depth, args...)
 	}
 }
 
