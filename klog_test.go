@@ -473,7 +473,7 @@ func TestLogBacktraceAt(t *testing.T) {
 		// Need 2 appearances, one in the log header and one in the trace:
 		//   log_test.go:281: I0511 16:36:06.952398 02238 log_test.go:280] we want a stack trace here
 		//   ...
-		//   github.com/glog/glog_test.go:280 (0x41ba91)
+		//   k8s.io/klog/klog_test.go:280 (0x41ba91)
 		//   ...
 		// We could be more precise but that would require knowing the details
 		// of the traceback format, which may not be dependable.
