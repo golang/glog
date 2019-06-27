@@ -1170,7 +1170,7 @@ func InfoDepth(depth int, args ...interface{}) {
 }
 
 // Infoln logs to the INFO log.
-// Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
+// Arguments are handled in the manner of fmt.Println; a newline is always appended.
 func Infoln(args ...interface{}) {
 	logging.println(infoLog, args...)
 }
@@ -1194,7 +1194,7 @@ func WarningDepth(depth int, args ...interface{}) {
 }
 
 // Warningln logs to the WARNING and INFO logs.
-// Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
+// Arguments are handled in the manner of fmt.Println; a newline is always appended.
 func Warningln(args ...interface{}) {
 	logging.println(warningLog, args...)
 }
@@ -1218,7 +1218,7 @@ func ErrorDepth(depth int, args ...interface{}) {
 }
 
 // Errorln logs to the ERROR, WARNING, and INFO logs.
-// Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
+// Arguments are handled in the manner of fmt.Println; a newline is always appended.
 func Errorln(args ...interface{}) {
 	logging.println(errorLog, args...)
 }
@@ -1244,7 +1244,7 @@ func FatalDepth(depth int, args ...interface{}) {
 
 // Fatalln logs to the FATAL, ERROR, WARNING, and INFO logs,
 // including a stack trace of all running goroutines, then calls os.Exit(255).
-// Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
+// Arguments are handled in the manner of fmt.Println; a newline is always appended.
 func Fatalln(args ...interface{}) {
 	logging.println(fatalLog, args...)
 }
