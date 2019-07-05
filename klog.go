@@ -417,6 +417,7 @@ func InitFlags(flagset *flag.FlagSet) {
 		logging.toStderr = true
 		logging.alsoToStderr = false
 		logging.skipHeaders = false
+		logging.addDirHeader = false
 		logging.skipLogHeaders = false
 	})
 
@@ -432,6 +433,7 @@ func InitFlags(flagset *flag.FlagSet) {
 	flagset.BoolVar(&logging.toStderr, "logtostderr", logging.toStderr, "log to standard error instead of files")
 	flagset.BoolVar(&logging.alsoToStderr, "alsologtostderr", logging.alsoToStderr, "log to standard error as well as files")
 	flagset.Var(&logging.verbosity, "v", "number for the log level verbosity")
+	flagset.BoolVar(&logging.skipHeaders, "add_dir_header", logging.addDirHeader, "If true, adds the file directory to the header")
 	flagset.BoolVar(&logging.skipHeaders, "skip_headers", logging.skipHeaders, "If true, avoid header prefixes in the log messages")
 	flagset.BoolVar(&logging.skipLogHeaders, "skip_log_headers", logging.skipLogHeaders, "If true, avoid headers when opening log files")
 	flagset.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
@@ -500,6 +502,9 @@ type loggingT struct {
 
 	// If true, do not add the headers to log files
 	skipLogHeaders bool
+
+	// If true, add the file directory to the header
+	addDirHeader bool
 }
 
 // buffer holds a byte Buffer for reuse. The zero value is ready for use.
@@ -585,9 +590,14 @@ func (l *loggingT) header(s severity, depth int) (*buffer, string, int) {
 		file = "???"
 		line = 1
 	} else {
-		slash := strings.LastIndex(file, "/")
-		if slash >= 0 {
-			file = file[slash+1:]
+		if slash := strings.LastIndex(file, "/"); slash >= 0 {
+			path := file
+			file = path[slash+1:]
+			if l.addDirHeader {
+				if dirsep := strings.LastIndex(path[:slash], "/"); dirsep >= 0 {
+					file = path[dirsep+1:]
+				}
+			}
 		}
 	}
 	return l.formatHeader(s, file, line), file, line

@@ -88,6 +88,7 @@ func contains(s severity, str string, t *testing.T) bool {
 // setFlags configures the logging flags how the test expects them.
 func setFlags() {
 	logging.toStderr = false
+	logging.addDirHeader = false
 }
 
 // Test that Info works as advertised.
@@ -186,6 +187,30 @@ func TestHeader(t *testing.T) {
 	Info("test")
 	var line int
 	format := "I0102 15:04:05.067890    1234 klog_test.go:%d] test\n"
+	n, err := fmt.Sscanf(contents(infoLog), format, &line)
+	if n != 1 || err != nil {
+		t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(infoLog))
+	}
+	// Scanf treats multiple spaces as equivalent to a single space,
+	// so check for correct space-padding also.
+	want := fmt.Sprintf(format, line)
+	if contents(infoLog) != want {
+		t.Errorf("log format error: got:\n\t%q\nwant:\t%q", contents(infoLog), want)
+	}
+}
+
+func TestHeaderWithDir(t *testing.T) {
+	setFlags()
+	logging.addDirHeader = true
+	defer logging.swap(logging.newBuffers())
+	defer func(previous func() time.Time) { timeNow = previous }(timeNow)
+	timeNow = func() time.Time {
+		return time.Date(2006, 1, 2, 15, 4, 5, .067890e9, time.Local)
+	}
+	pid = 1234
+	Info("test")
+	var line int
+	format := "I0102 15:04:05.067890    1234 klog/klog_test.go:%d] test\n"
 	n, err := fmt.Sscanf(contents(infoLog), format, &line)
 	if n != 1 || err != nil {
 		t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(infoLog))
@@ -482,6 +507,14 @@ func TestLogBacktraceAt(t *testing.T) {
 }
 
 func BenchmarkHeader(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		buf, _, _ := logging.header(infoLog, 0)
+		logging.putBuffer(buf)
+	}
+}
+
+func BenchmarkHeaderWithDir(b *testing.B) {
+	logging.addDirHeader = true
 	for i := 0; i < b.N; i++ {
 		buf, _, _ := logging.header(infoLog, 0)
 		logging.putBuffer(buf)
