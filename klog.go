@@ -821,6 +821,10 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 		for log := fatalLog; log >= infoLog; log-- {
 			if f := l.file[log]; f != nil { // Can be nil if -logtostderr is set.
 				f.Write(trace)
+			} else {
+				if log == fatalLog {
+					os.Stderr.Write(trace)
+				}
 			}
 		}
 		l.mu.Unlock()
