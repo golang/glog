@@ -33,18 +33,31 @@ import (
 // MaxSize is the maximum size of a log file in bytes.
 var MaxSize uint64 = 1024 * 1024 * 1800
 
+// MinSize is the minimum size of a log file in bytes.
+var MinSize uint64 = 1024
+
 // logDirs lists the candidate directories for new log files.
 var logDirs []string
 
 // If non-empty, overrides the choice of directory in which to write logs.
 // See createLogDirs for the full list of possible destinations.
 var logDir = flag.String("log_dir", "", "If non-empty, write log files in this directory")
+var logSize = flag.Uint64("log_size", MaxSize, "log file size, min:10M max:1.8G")
+var logNum = flag.Uint64("log_num", 10, "number of old log to save")
 
 func createLogDirs() {
 	if *logDir != "" {
 		logDirs = append(logDirs, *logDir)
 	}
 	logDirs = append(logDirs, os.TempDir())
+}
+
+func logrotate() {
+	if *logSize <= MinSize {
+		MaxSize = MinSize
+	} else if *logSize < MaxSize {
+		MaxSize = *logSize
+	}
 }
 
 var (
@@ -121,4 +134,17 @@ func create(tag string, t time.Time) (f *os.File, filename string, err error) {
 		lastErr = err
 	}
 	return nil, "", fmt.Errorf("log: cannot create log: %v", lastErr)
+}
+
+func delete(tag string) {
+	name := fmt.Sprintf("%s.%s.%s.log.%s", program, host, userName, tag)
+	for _, dir := range logDirs {
+		nameFilter := fmt.Sprintf("%s/%s.*", dir, name)
+		files, _ := filepath.Glob(nameFilter)
+		if len(files) > int(*logNum) {
+			for _, file := range files[:(len(files) - int(*logNum))] {
+				os.Remove(file)
+			}
+		}
+	}
 }
