@@ -34,7 +34,7 @@ import (
 var MaxSize uint64 = 1024 * 1024 * 1800
 
 // MinSize is the minimum size of a log file in bytes.
-var MinSize uint64 = 1024
+var MinSize uint64 = 1024 * 1024 * 10
 
 // logDirs lists the candidate directories for new log files.
 var logDirs []string
