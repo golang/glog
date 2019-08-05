@@ -320,6 +320,36 @@ func TestVmoduleOff(t *testing.T) {
 	}
 }
 
+func TestSetOutputDataRace(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+	for i := 1; i <= 50; i++ {
+		go func() {
+			logging.flushDaemon()
+		}()
+	}
+	for i := 1; i <= 50; i++ {
+		go func() {
+			SetOutput(ioutil.Discard)
+		}()
+	}
+	for i := 1; i <= 50; i++ {
+		go func() {
+			logging.flushDaemon()
+		}()
+	}
+	for i := 1; i <= 50; i++ {
+		go func() {
+			SetOutputBySeverity("INFO", ioutil.Discard)
+		}()
+	}
+	for i := 1; i <= 50; i++ {
+		go func() {
+			logging.flushDaemon()
+		}()
+	}
+}
+
 // vGlobs are patterns that match/don't match this file at V=2.
 var vGlobs = map[string]bool{
 	// Easy to test the numeric match here.
