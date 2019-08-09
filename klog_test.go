@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	stdLog "log"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -320,6 +321,36 @@ func TestVmoduleOff(t *testing.T) {
 	}
 }
 
+func TestSetOutputDataRace(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+	for i := 1; i <= 50; i++ {
+		go func() {
+			logging.flushDaemon()
+		}()
+	}
+	for i := 1; i <= 50; i++ {
+		go func() {
+			SetOutput(ioutil.Discard)
+		}()
+	}
+	for i := 1; i <= 50; i++ {
+		go func() {
+			logging.flushDaemon()
+		}()
+	}
+	for i := 1; i <= 50; i++ {
+		go func() {
+			SetOutputBySeverity("INFO", ioutil.Discard)
+		}()
+	}
+	for i := 1; i <= 50; i++ {
+		go func() {
+			logging.flushDaemon()
+		}()
+	}
+}
+
 // vGlobs are patterns that match/don't match this file at V=2.
 var vGlobs = map[string]bool{
 	// Easy to test the numeric match here.
@@ -519,6 +550,31 @@ func BenchmarkHeaderWithDir(b *testing.B) {
 		buf, _, _ := logging.header(infoLog, 0)
 		logging.putBuffer(buf)
 	}
+}
+
+func BenchmarkLogs(b *testing.B) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+
+	testFile, err := ioutil.TempFile("", "test.log")
+	if err != nil {
+		b.Error("unable to create temporary file")
+	}
+	defer os.Remove(testFile.Name())
+
+	logging.verbosity.Set("0")
+	logging.toStderr = false
+	logging.alsoToStderr = false
+	logging.stderrThreshold = fatalLog
+	logging.logFile = testFile.Name()
+	logging.swap([numSeverity]flushSyncWriter{nil, nil, nil, nil})
+
+	for i := 0; i < b.N; i++ {
+		Error("error")
+		Warning("warning")
+		Info("info")
+	}
+	logging.flushAll()
 }
 
 // Test the logic on checking log size limitation.
