@@ -84,7 +84,7 @@ func TestDestinationsWithDifferentFlags(t *testing.T) {
 		"default flags": {
 			// Everything, including the trace on fatal, goes to stderr
 
-			expectedOnStderr:    res{infoLogRE, warningLogRE, errorLogRE, fatalLogRE},
+			expectedOnStderr: res{infoLogRE, warningLogRE, errorLogRE, fatalLogRE},
 		},
 		"everything disabled": {
 			// Nothing, including the trace on fatal, is showing anywhere
@@ -107,7 +107,7 @@ func TestDestinationsWithDifferentFlags(t *testing.T) {
 
 			flags: []string{"-logtostderr=true", "-alsologtostderr=false", "-stderrthreshold=1000"},
 
-			expectedOnStderr:    res{infoLogRE, warningLogRE, errorLogRE, fatalLogRE},
+			expectedOnStderr: res{infoLogRE, warningLogRE, errorLogRE, fatalLogRE},
 		},
 		"with log file only": {
 			// Everything, including the trace on fatal, goes to the single log file
@@ -139,7 +139,7 @@ func TestDestinationsWithDifferentFlags(t *testing.T) {
 			logdir: true,
 			flags:  []string{"-logtostderr=true", "-alsologtostderr=false", "-stderrthreshold=1000"},
 
-			expectedOnStderr:    res{infoLogRE, warningLogRE, errorLogRE, fatalLogRE},
+			expectedOnStderr: res{infoLogRE, warningLogRE, errorLogRE, fatalLogRE},
 		},
 		"with log file and log dir": {
 			// Everything, including the trace on fatal, goes to the single log file.
