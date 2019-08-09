@@ -837,12 +837,11 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 		trace := stacks(true)
 		logExitFunc = func(error) {} // If we get a write error, we'll still exit below.
 		for log := fatalLog; log >= infoLog; log-- {
+			if l.toStderr && log == fatalLog {
+				os.Stderr.Write(trace)
+			}
 			if f := l.file[log]; f != nil { // Can be nil if -logtostderr is set.
 				f.Write(trace)
-			} else {
-				if log == fatalLog {
-					os.Stderr.Write(trace)
-				}
 			}
 		}
 		l.mu.Unlock()
