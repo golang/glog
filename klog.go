@@ -396,31 +396,23 @@ type flushSyncWriter interface {
 	io.Writer
 }
 
+// init sets up the defaults and runs flushDaemon.
 func init() {
-	// Default stderrThreshold is ERROR.
-	logging.stderrThreshold = errorLog
-
+	logging.stderrThreshold = errorLog // Default stderrThreshold is ERROR.
 	logging.setVState(0, nil, false)
+	logging.logDir = ""
+	logging.logFile = ""
+	logging.logFileMaxSizeMB = 1800
+	logging.toStderr = true
+	logging.alsoToStderr = false
+	logging.skipHeaders = false
+	logging.addDirHeader = false
+	logging.skipLogHeaders = false
 	go logging.flushDaemon()
 }
 
-var initDefaultsOnce sync.Once
-
 // InitFlags is for explicitly initializing the flags.
 func InitFlags(flagset *flag.FlagSet) {
-
-	// Initialize defaults.
-	initDefaultsOnce.Do(func() {
-		logging.logDir = ""
-		logging.logFile = ""
-		logging.logFileMaxSizeMB = 1800
-		logging.toStderr = true
-		logging.alsoToStderr = false
-		logging.skipHeaders = false
-		logging.addDirHeader = false
-		logging.skipLogHeaders = false
-	})
-
 	if flagset == nil {
 		flagset = flag.CommandLine
 	}
