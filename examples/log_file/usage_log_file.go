@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 func main() {
