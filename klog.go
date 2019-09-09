@@ -766,7 +766,7 @@ func (rb *redirectBuffer) Write(bytes []byte) (n int, err error) {
 }
 
 // SetLogger will set the backing logr implementation for klog.
-// If set, all log lines will be supressed from the regular Output, and
+// If set, all log lines will be suppressed from the regular Output, and
 // redirected to the logr implementation.
 // All log lines include the 'severity', 'file' and 'line' values attached as
 // structured logging values.
