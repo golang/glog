@@ -149,7 +149,7 @@ func (l klogger) Info(msg string, kvList ...interface{}) {
 }
 
 func (l klogger) Enabled() bool {
-	return bool(klog.V(klog.Level(l.level)).Enabled())
+	return bool(klog.V(klog.Level(l.level)))
 }
 
 func (l klogger) Error(err error, msg string, kvList ...interface{}) {
