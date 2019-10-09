@@ -803,6 +803,14 @@ func SetOutputBySeverity(name string, w io.Writer) {
 	logging.file[sev] = rb
 }
 
+// LogToStderr sets whether to log exclusively to stderr, bypassing outputs
+func LogToStderr(stderr bool) {
+	logging.mu.Lock()
+	defer logging.mu.Unlock()
+
+	logging.toStderr = stderr
+}
+
 // output writes the data to the log files and releases the buffer.
 func (l *loggingT) output(s severity, log logr.InfoLogger, buf *buffer, file string, line int, alsoToStderr bool) {
 	l.mu.Lock()

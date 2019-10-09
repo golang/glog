@@ -351,6 +351,21 @@ func TestSetOutputDataRace(t *testing.T) {
 	}
 }
 
+func TestLogToOutput(t *testing.T) {
+	logging.toStderr = true
+	defer logging.swap(logging.newBuffers())
+	buf := new(bytes.Buffer)
+	SetOutput(buf)
+	LogToStderr(false)
+
+	Info("Does logging to an output work?")
+
+	str := buf.String()
+	if !strings.Contains(str, "Does logging to an output work?") {
+		t.Fatalf("Expected %q to contain \"Does logging to an output work?\"", str)
+	}
+}
+
 // vGlobs are patterns that match/don't match this file at V=2.
 var vGlobs = map[string]bool{
 	// Easy to test the numeric match here.
