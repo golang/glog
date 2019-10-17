@@ -484,7 +484,7 @@ type loggingT struct {
 	logDir string
 
 	// If non-empty, specifies the path of the file to write logs. mutually exclusive
-	// with the log-dir option.
+	// with the log_dir option.
 	logFile string
 
 	// When logFile is specified, this limiter makes sure the logFile won't exceeds a certain size. When exceeds, the
