@@ -16,6 +16,7 @@ func (e myError) Error() string {
 }
 
 func main() {
+	klog.InitFlags(nil)
 	flag.Set("v", "3")
 	flag.Parse()
 	log := klogr.New().WithName("MyName").WithValues("user", "you")
