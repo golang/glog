@@ -67,7 +67,11 @@ func (l *loggingT) swap(writers [numSeverity]flushSyncWriter) (old [numSeverity]
 
 // newBuffers sets the log writers to all new byte buffers and returns the old array.
 func (l *loggingT) newBuffers() [numSeverity]flushSyncWriter {
-	return l.swap([numSeverity]flushSyncWriter{new(flushBuffer), new(flushBuffer), new(flushBuffer), new(flushBuffer)})
+	writers:=[numSeverity]flushSyncWriter{}
+	for i,_ :=range writers {
+		writers[i]=new(flushBuffer)
+	}
+	return l.swap(writers)
 }
 
 // contents returns the specified log value as a string.

@@ -98,16 +98,20 @@ type severity int32 // sync/atomic int32
 // A message written to a high-severity log file is also written to each
 // lower-severity log file.
 const (
-	infoLog severity = iota
+	traceLog severity = iota
+	debugLog
+	infoLog
 	warningLog
 	errorLog
 	fatalLog
-	numSeverity = 4
+	numSeverity = 6
 )
 
-const severityChar = "IWEF"
+const severityChar = "TDIWEF"
 
 var severityName = []string{
+	traceLog:   "TRACE",
+	debugLog:   "DEBUG",
 	infoLog:    "INFO",
 	warningLog: "WARNING",
 	errorLog:   "ERROR",
@@ -180,10 +184,12 @@ func (s *OutputStats) Bytes() int64 {
 // Stats tracks the number of lines of output and number of bytes
 // per severity level. Values must be read with atomic.LoadInt64.
 var Stats struct {
-	Info, Warning, Error OutputStats
+	Trace, Debug, Info, Warning, Error OutputStats
 }
 
 var severityStats = [numSeverity]*OutputStats{
+	traceLog:   &Stats.Trace,
+	debugLog:   &Stats.Debug,
 	infoLog:    &Stats.Info,
 	warningLog: &Stats.Warning,
 	errorLog:   &Stats.Error,
@@ -862,7 +868,7 @@ func (l *loggingT) createFiles(sev severity) error {
 	now := time.Now()
 	// Files are created in decreasing severity order, so as soon as we find one
 	// has already been created, we can stop.
-	for s := sev; s >= infoLog && l.file[s] == nil; s-- {
+	for s := sev; s >= traceLog && l.file[s] == nil; s-- {
 		sb := &syncBuffer{
 			logger: l,
 			sev:    s,
@@ -1071,6 +1077,56 @@ func Infoln(args ...interface{}) {
 // Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
 func Infof(format string, args ...interface{}) {
 	logging.printf(infoLog, format, args...)
+}
+
+
+// Trace logs to the TRACE log.
+// Arguments are handled in the manner of fmt.Print; a newline is appended if missing.
+func Trace(args ...interface{}) {
+	logging.print(traceLog, args...)
+}
+
+// TraceDepth acts as trace but uses depth to determine which call frame to log.
+// InfoDepth(0, "msg") is the same as Trace("msg").
+func TraceDepth(depth int, args ...interface{}) {
+	logging.printDepth(traceLog, depth, args...)
+}
+
+// Traceln logs to the TRACE log.
+// Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
+func Traceln(args ...interface{}) {
+	logging.println(traceLog, args...)
+}
+
+// Tracef logs to the TRACE log.
+// Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
+func Tracef(format string, args ...interface{}) {
+	logging.printf(traceLog, format, args...)
+}
+
+
+// Debug logs to the Debug log.
+// Arguments are handled in the manner of fmt.Print; a newline is appended if missing.
+func Debug(args ...interface{}) {
+	logging.print(debugLog, args...)
+}
+
+// DebugDepth acts as debug but uses depth to determine which call frame to log.
+// InfoDepth(0, "msg") is the same as Trace("msg").
+func DebugDepth(depth int, args ...interface{}) {
+	logging.printDepth(debugLog, depth, args...)
+}
+
+// Debugln logs to the DEBUG log.
+// Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
+func Debugln(args ...interface{}) {
+	logging.println(debugLog, args...)
+}
+
+// Debugf logs to the DEBUG log.
+// Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
+func Debugf(format string, args ...interface{}) {
+	logging.printf(debugLog, format, args...)
 }
 
 // Warning logs to the WARNING and INFO logs.
