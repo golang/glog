@@ -482,7 +482,7 @@ func TestOpenAppendOnStart(t *testing.T) {
 	// Logging agagin should open the file again with O_APPEND instead of O_TRUNC
 	Info(y)
 	// ensure we wrote what we expected
-	logging.flushAll()
+	logging.lockAndFlushAll()
 	b, err = ioutil.ReadFile(logging.logFile)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -491,7 +491,7 @@ func TestOpenAppendOnStart(t *testing.T) {
 		t.Fatalf("got %s, missing expected Info log: %s", string(b), y)
 	}
 	// The initial log message should be preserved across create calls.
-	logging.flushAll()
+	logging.lockAndFlushAll()
 	b, err = ioutil.ReadFile(logging.logFile)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
