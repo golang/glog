@@ -132,7 +132,7 @@ func (s *severity) String() string {
 	return strconv.FormatInt(int64(*s), 10)
 }
 
-// Get is part of the flag.Value interface.
+// Get is part of the flag.Getter interface.
 func (s *severity) Get() interface{} {
 	return *s
 }
@@ -221,7 +221,7 @@ func (l *Level) String() string {
 	return strconv.FormatInt(int64(*l), 10)
 }
 
-// Get is part of the flag.Value interface.
+// Get is part of the flag.Getter interface.
 func (l *Level) Get() interface{} {
 	return *l
 }
