@@ -40,6 +40,15 @@ var logDirs []string
 // See createLogDirs for the full list of possible destinations.
 var logDir = flag.String("log_dir", "", "If non-empty, write log files in this directory")
 
+// Set the Directory path to write log files. Short-hand for setting log_dir in argument
+// dir - path of Directory in which log files have to be written.
+func SetLogDir(dir string) {
+	trimmedStr := strings.TrimSpace(logDir)
+	if len(trimmedStr) > 0 {
+		*logDir = dir
+	}
+}
+
 func createLogDirs() {
 	if *logDir != "" {
 		logDirs = append(logDirs, *logDir)
