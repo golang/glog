@@ -639,3 +639,117 @@ func TestInitFlags(t *testing.T) {
 		t.Fatal("Expected log_file_max_size to be 2048")
 	}
 }
+
+func TestInfoObjectRef(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+
+	tests := []struct {
+		name string
+		ref  ObjectRef
+		want string
+	}{
+		{
+			name: "with ns",
+			ref: ObjectRef{
+				Name:      "test-name",
+				Namespace: "test-ns",
+			},
+			want: "test-ns/test-name",
+		},
+		{
+			name: "without ns",
+			ref: ObjectRef{
+				Name:      "test-name",
+				Namespace: "",
+			},
+			want: "test-name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			Info(tt.ref)
+			if !contains(infoLog, tt.want, t) {
+				t.Errorf("expected %v, got %v", tt.want, contents(infoLog))
+			}
+		})
+	}
+}
+
+type mockKmeta struct {
+	name, ns string
+}
+
+func (m mockKmeta) GetName() string {
+	return m.name
+}
+func (m mockKmeta) GetNamespace() string {
+	return m.ns
+}
+
+func TestKObj(t *testing.T) {
+	tests := []struct {
+		name string
+		obj  KMetadata
+		want ObjectRef
+	}{
+		{
+			name: "with ns",
+			obj:  mockKmeta{"test-name", "test-ns"},
+			want: ObjectRef{
+				Name:      "test-name",
+				Namespace: "test-ns",
+			},
+		},
+		{
+			name: "without ns",
+			obj:  mockKmeta{"test-name", ""},
+			want: ObjectRef{
+				Name: "test-name",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if KObj(tt.obj) != tt.want {
+				t.Errorf("expected %v, got %v", tt.want, KObj(tt.obj))
+			}
+		})
+	}
+}
+
+func TestKRef(t *testing.T) {
+	tests := []struct {
+		testname  string
+		name      string
+		namespace string
+		want      ObjectRef
+	}{
+		{
+			testname:  "with ns",
+			name:      "test-name",
+			namespace: "test-ns",
+			want: ObjectRef{
+				Name:      "test-name",
+				Namespace: "test-ns",
+			},
+		},
+		{
+			testname: "without ns",
+			name:     "test-name",
+			want: ObjectRef{
+				Name: "test-name",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.testname, func(t *testing.T) {
+			if KRef(tt.namespace, tt.name) != tt.want {
+				t.Errorf("expected %v, got %v", tt.want, KRef(tt.namespace, tt.name))
+			}
+		})
+	}
+}
