@@ -748,6 +748,53 @@ func (l *loggingT) printWithFileLine(s severity, logr logr.InfoLogger, file stri
 	l.output(s, logr, buf, file, line, alsoToStderr)
 }
 
+// printS if loggr is specified, no need to output with logging module. If
+// err arguments is specified, will call logr.Error, or output to errorLog severity
+func (l *loggingT) printS(err error, loggr logr.Logger, msg string, keysAndValues ...interface{}) {
+	if loggr != nil {
+		if err != nil {
+			loggr.Error(err, msg, keysAndValues)
+		} else {
+			loggr.Info(msg, keysAndValues)
+		}
+		return
+	}
+	b := &bytes.Buffer{}
+	b.WriteString(fmt.Sprintf("%q", msg))
+	if err != nil {
+		b.WriteByte(' ')
+		b.WriteString(fmt.Sprintf("err=%q", err.Error()))
+	}
+	kvListFormat(b, keysAndValues...)
+	var s severity
+	if err == nil {
+		s = infoLog
+	} else {
+		s = errorLog
+	}
+	l.printDepth(s, logging.logr, 1, b)
+}
+
+const missingValue = "(MISSING)"
+
+func kvListFormat(b *bytes.Buffer, keysAndValues ...interface{}) {
+	for i := 0; i < len(keysAndValues); i += 2 {
+		var v interface{}
+		k := keysAndValues[i]
+		if i+1 < len(keysAndValues) {
+			v = keysAndValues[i+1]
+		} else {
+			v = missingValue
+		}
+		b.WriteByte(' ')
+		if _, ok := v.(fmt.Stringer); ok {
+			b.WriteString(fmt.Sprintf("%s=%q", k, v))
+		} else {
+			b.WriteString(fmt.Sprintf("%s=%#v", k, v))
+		}
+	}
+}
+
 // redirectBuffer is used to set an alternate destination for the logs
 type redirectBuffer struct {
 	w io.Writer
@@ -1241,6 +1288,18 @@ func (v Verbose) Infof(format string, args ...interface{}) {
 	}
 }
 
+// InfoS is equivalent to the global InfoS function, guarded by the value of v.
+// See the documentation of V for usage.
+func (v Verbose) InfoS(msg string, keysAndValues ...interface{}) {
+	if v.enabled {
+		if v.logr != nil {
+			v.logr.Info(msg, keysAndValues)
+			return
+		}
+		logging.printS(nil, nil, msg, keysAndValues...)
+	}
+}
+
 // Info logs to the INFO log.
 // Arguments are handled in the manner of fmt.Print; a newline is appended if missing.
 func Info(args ...interface{}) {
@@ -1263,6 +1322,18 @@ func Infoln(args ...interface{}) {
 // Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
 func Infof(format string, args ...interface{}) {
 	logging.printf(infoLog, logging.logr, format, args...)
+}
+
+// InfoS structured logs to the INFO log.
+// The msg argument used to add constant description to the log line.
+// The key/value pairs would be join by "=" ; a newline is always appended.
+//
+// Basic examples:
+// >> klog.InfoS("Pod status updated", "pod", "kubedns", "status", "ready")
+// output:
+// >> I1025 00:15:15.525108       1 controller_utils.go:116] "Pod status updated" pod="kubedns" status="ready"
+func InfoS(msg string, keysAndValues ...interface{}) {
+	logging.printS(nil, logging.logr, msg, keysAndValues...)
 }
 
 // Warning logs to the WARNING and INFO logs.
@@ -1311,6 +1382,19 @@ func Errorln(args ...interface{}) {
 // Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
 func Errorf(format string, args ...interface{}) {
 	logging.printf(errorLog, logging.logr, format, args...)
+}
+
+// ErrorS structured logs to the ERROR, WARNING, and INFO logs.
+// the err argument used as "err" field of log line.
+// The msg argument used to add constant description to the log line.
+// The key/value pairs would be join by "=" ; a newline is always appended.
+//
+// Basic examples:
+// >> klog.ErrorS(err, "Failed to update pod status")
+// output:
+// >> E1025 00:15:15.525108       1 controller_utils.go:114] "Failed to update pod status" err="timeout"
+func ErrorS(err error, msg string, keysAndValues ...interface{}) {
+	logging.printS(err, logging.logr, msg, keysAndValues...)
 }
 
 // Fatal logs to the FATAL, ERROR, WARNING, and INFO logs,

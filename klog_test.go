@@ -753,3 +753,125 @@ func TestKRef(t *testing.T) {
 		})
 	}
 }
+
+// Test that InfoS works as advertised.
+func TestInfoS(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+	timeNow = func() time.Time {
+		return time.Date(2006, 1, 2, 15, 4, 5, .067890e9, time.Local)
+	}
+	pid = 1234
+	var testDataInfo = []struct {
+		msg        string
+		format     string
+		keysValues []interface{}
+	}{
+		{
+			msg:        "test",
+			format:     "I0102 15:04:05.067890    1234 klog_test.go:%d] \"test\" pod=\"kubedns\"\n",
+			keysValues: []interface{}{"pod", "kubedns"},
+		},
+		{
+			msg:        "test",
+			format:     "I0102 15:04:05.067890    1234 klog_test.go:%d] \"test\" replicaNum=20\n",
+			keysValues: []interface{}{"replicaNum", 20},
+		},
+	}
+
+	for _, data := range testDataInfo {
+		logging.file[infoLog] = &flushBuffer{}
+		InfoS(data.msg, data.keysValues...)
+		var line int
+		n, err := fmt.Sscanf(contents(infoLog), data.format, &line)
+		if n != 1 || err != nil {
+			t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(infoLog))
+		}
+		want := fmt.Sprintf(data.format, line)
+		if contents(infoLog) != want {
+			t.Errorf("InfoS has wrong format: \n got:\t%s\nwant:\t%s", contents(infoLog), want)
+		}
+	}
+}
+
+// Test that ErrorS works as advertised.
+func TestErrorS(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+	timeNow = func() time.Time {
+		return time.Date(2006, 1, 2, 15, 4, 5, .067890e9, time.Local)
+	}
+	logging.logFile = ""
+	pid = 1234
+	ErrorS(fmt.Errorf("update status failed"), "Failed to update pod status", "pod", "kubedns")
+	var line int
+	format := "E0102 15:04:05.067890    1234 klog_test.go:%d] \"Failed to update pod status\" err=\"update status failed\" pod=\"kubedns\"\n"
+	n, err := fmt.Sscanf(contents(errorLog), format, &line)
+	if n != 1 || err != nil {
+		t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(errorLog))
+	}
+	want := fmt.Sprintf(format, line)
+	if contents(errorLog) != want {
+		t.Errorf("ErrorS has wrong format: \n got:\t%s\nwant:\t%s", contents(errorLog), want)
+	}
+}
+
+// Test that kvListFormat works as advertised.
+func TestKvListFormat(t *testing.T) {
+	var testKVList = []struct {
+		keysValues []interface{}
+		want       string
+	}{
+		{
+			keysValues: []interface{}{"pod", "kubedns"},
+			want:       " pod=\"kubedns\"",
+		},
+		{
+			keysValues: []interface{}{"pod", "kubedns", "update", true},
+			want:       " pod=\"kubedns\" update=true",
+		},
+		{
+			keysValues: []interface{}{"pod", "kubedns", "spec", struct {
+				X int
+				Y string
+			}{X: 76, Y: "strval"}},
+			want: " pod=\"kubedns\" spec=struct { X int; Y string }{X:76, Y:\"strval\"}",
+		},
+		{
+			keysValues: []interface{}{"pod", "kubedns", "values", []int{8, 6, 7, 5, 3, 0, 9}},
+			want:       " pod=\"kubedns\" values=[]int{8, 6, 7, 5, 3, 0, 9}",
+		},
+		{
+			keysValues: []interface{}{"pod", "kubedns", "values", []string{"deployment", "svc", "configmap"}},
+			want:       " pod=\"kubedns\" values=[]string{\"deployment\", \"svc\", \"configmap\"}",
+		},
+		{
+			keysValues: []interface{}{"pod", "kubedns", "maps", map[string]int{"three": 4}},
+			want:       " pod=\"kubedns\" maps=map[string]int{\"three\":4}",
+		},
+		{
+			keysValues: []interface{}{"pod", KRef("kube-system", "kubedns"), "status", "ready"},
+			want:       " pod=\"kube-system/kubedns\" status=\"ready\"",
+		},
+		{
+			keysValues: []interface{}{"pod", KRef("", "kubedns"), "status", "ready"},
+			want:       " pod=\"kubedns\" status=\"ready\"",
+		},
+		{
+			keysValues: []interface{}{"pod", KObj(mockKmeta{"test-name", "test-ns"}), "status", "ready"},
+			want:       " pod=\"test-ns/test-name\" status=\"ready\"",
+		},
+		{
+			keysValues: []interface{}{"pod", KObj(mockKmeta{"test-name", ""}), "status", "ready"},
+			want:       " pod=\"test-name\" status=\"ready\"",
+		},
+	}
+
+	for _, d := range testKVList {
+		b := &bytes.Buffer{}
+		kvListFormat(b, d.keysValues...)
+		if b.String() != d.want {
+			t.Errorf("kvlist format error:\n got:\n\t%s\nwant:\t%s", b.String(), d.want)
+		}
+	}
+}
