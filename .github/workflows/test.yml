@@ -1,0 +1,32 @@
+name: Test
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      matrix:
+        go-versions: [1.12.x, 1.13.x, 1.14.x]
+        platform: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@v1
+      with:
+        go-version: ${{ matrix.go-version }}
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - name: Test
+      run: |
+        go get -t -v ./...
+        go test -v -race ./...
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v1
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Lint
+        run: |
+          docker run --rm -v `pwd`:/go/src/k8s.io/klog -w /go/src/k8s.io/klog \
+            golangci/golangci-lint:v1.23.8 golangci-lint run --disable-all -v \
+            -E govet -E misspell -E gofmt -E ineffassign -E golint
