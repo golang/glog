@@ -875,3 +875,66 @@ func TestKvListFormat(t *testing.T) {
 		}
 	}
 }
+
+func createTestValueOfLoggingT() *loggingT {
+	l := new(loggingT)
+	l.toStderr = true
+	l.alsoToStderr = false
+	l.stderrThreshold = errorLog
+	l.verbosity = Level(0)
+	l.skipHeaders = false
+	l.skipLogHeaders = false
+	l.addDirHeader = false
+	return l
+}
+
+func createTestValueOfModulePat(p string, li bool, le Level) modulePat {
+	m := modulePat{}
+	m.pattern = p
+	m.literal = li
+	m.level = le
+	return m
+}
+
+func compareModuleSpec(a, b moduleSpec) bool {
+	if len(a.filter) != len(b.filter) {
+		return false
+	}
+
+	for i := 0; i < len(a.filter); i++ {
+		if a.filter[i] != b.filter[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func TestSetVState(t *testing.T) {
+	//Target loggingT value
+	want := createTestValueOfLoggingT()
+	want.verbosity = Level(3)
+	want.vmodule.filter = []modulePat{
+		createTestValueOfModulePat("recordio", true, Level(2)),
+		createTestValueOfModulePat("file", true, Level(1)),
+		createTestValueOfModulePat("gfs*", false, Level(3)),
+		createTestValueOfModulePat("gopher*", false, Level(3)),
+	}
+	want.filterLength = 4
+
+	//loggingT value to which test is run
+	target := createTestValueOfLoggingT()
+
+	tf := []modulePat{
+		createTestValueOfModulePat("recordio", true, Level(2)),
+		createTestValueOfModulePat("file", true, Level(1)),
+		createTestValueOfModulePat("gfs*", false, Level(3)),
+		createTestValueOfModulePat("gopher*", false, Level(3)),
+	}
+
+	target.setVState(Level(3), tf, true)
+
+	if want.verbosity != target.verbosity || !compareModuleSpec(want.vmodule, target.vmodule) || want.filterLength != target.filterLength {
+		t.Errorf("setVState method doesn't configure loggingT values' verbosity, vmodule or filterLength:\nwant:\n\tverbosity:\t%v\n\tvmodule:\t%v\n\tfilterLength:\t%v\ngot:\n\tverbosity:\t%v\n\tvmodule:\t%v\n\tfilterLength:\t%v", want.verbosity, want.vmodule, want.filterLength, target.verbosity, target.vmodule, target.filterLength)
+	}
+}
