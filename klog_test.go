@@ -24,6 +24,7 @@ import (
 	stdLog "log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -210,17 +211,9 @@ func TestHeaderWithDir(t *testing.T) {
 	}
 	pid = 1234
 	Info("test")
-	var line int
-	format := "I0102 15:04:05.067890    1234 v2/klog_test.go:%d] test\n"
-	n, err := fmt.Sscanf(contents(infoLog), format, &line)
-	if n != 1 || err != nil {
-		t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(infoLog))
-	}
-	// Scanf treats multiple spaces as equivalent to a single space,
-	// so check for correct space-padding also.
-	want := fmt.Sprintf(format, line)
-	if contents(infoLog) != want {
-		t.Errorf("log format error: got:\n\t%q\nwant:\t%q", contents(infoLog), want)
+	re := regexp.MustCompile(`I0102 15:04:05.067890    1234 (klog|v2)/klog_test.go:(\d+)] test\n`)
+	if !re.MatchString(contents(infoLog)) {
+		t.Errorf("log format error: line does not match regex:\n\t%q\n", contents(infoLog))
 	}
 }
 
