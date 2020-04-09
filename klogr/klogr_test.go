@@ -2,7 +2,10 @@ package klogr
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"flag"
+	"strings"
 	"testing"
 
 	"k8s.io/klog/v2"
@@ -72,6 +75,20 @@ func TestInfo(t *testing.T) {
 			expectedOutput: ` "msg"="test" "basekey1"="basevar1" "basekey2"=null "akey"="avalue" "akey2"=null
 `,
 		},
+		"should correctly print regular error types": {
+			klogr:         New().V(0),
+			text:          "test",
+			keysAndValues: []interface{}{"err", errors.New("whoops")},
+			expectedOutput: ` "msg"="test"  "err"="whoops"
+`,
+		},
+		"should use MarshalJSON if an error type implements it": {
+			klogr:         New().V(0),
+			text:          "test",
+			keysAndValues: []interface{}{"err", &customErrorJSON{"whoops"}},
+			expectedOutput: ` "msg"="test"  "err"="WHOOPS"
+`,
+		},
 	}
 	for n, test := range tests {
 		t.Run(n, func(t *testing.T) {
@@ -94,4 +111,16 @@ func TestInfo(t *testing.T) {
 			}
 		})
 	}
+}
+
+type customErrorJSON struct {
+	s string
+}
+
+func (e *customErrorJSON) Error() string {
+	return e.s
+}
+
+func (e *customErrorJSON) MarshalJSON() ([]byte, error) {
+	return json.Marshal(strings.ToUpper(e.s))
 }
