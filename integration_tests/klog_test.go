@@ -2,12 +2,15 @@ package integration_tests_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -181,6 +184,11 @@ func TestDestinationsWithDifferentFlags(t *testing.T) {
 		},
 	}
 
+	binaryFileExtention := ""
+	if runtime.GOOS == "windows" {
+		binaryFileExtention = ".exe"
+	}
+
 	for tcName, tc := range tests {
 		tc := tc
 		t.Run(tcName, func(t *testing.T) {
@@ -214,13 +222,19 @@ func TestDestinationsWithDifferentFlags(t *testing.T) {
 				}
 
 				// check files in log_dir
-				for level, file := range logFileName {
-					logfile := filepath.Join(logdir, file) // /some/tmp/dir/main.WARNING
+				for level, levelName := range logFileLevels {
+					binaryName := "main" + binaryFileExtention
+					logfile, err := getLogFilePath(logdir, binaryName, levelName)
 					if tc.expectedLogDir {
+						if err != nil {
+							t.Errorf("Unable to find log file: %v", err)
+						}
 						content := getFileContent(t, logfile)
-						checkForLogs(t, tc.expectedInDir[level], tc.notExpectedInDir[level], content, "logfile["+file+"]")
+						checkForLogs(t, tc.expectedInDir[level], tc.notExpectedInDir[level], content, "logfile["+logfile+"]")
 					} else {
-						assertFileIsAbsent(t, logfile)
+						if err == nil {
+							t.Errorf("Unexpectedly found log file %s", logfile)
+						}
 					}
 				}
 			})
@@ -252,11 +266,11 @@ func klogRun(t *testing.T, flags []string, stderr io.Writer) {
 	}
 }
 
-var logFileName = map[int]string{
-	0: "main.INFO",
-	1: "main.WARNING",
-	2: "main.ERROR",
-	3: "main.FATAL",
+var logFileLevels = map[int]string{
+	0: "INFO",
+	1: "WARNING",
+	2: "ERROR",
+	3: "FATAL",
 }
 
 func getFileContent(t *testing.T, filePath string) string {
@@ -305,4 +319,31 @@ func withTmpDir(t *testing.T, f func(string)) {
 	}()
 
 	f(tmpDir)
+}
+
+// getLogFileFromDir returns the path of either the symbolic link to the logfile, or the the logfile itself. This must
+// be done as the creation of a symlink is not guaranteed on any platform. On Windows, only users with administration
+// privileges can create a symlink.
+func getLogFilePath(dir, binaryName, levelName string) (string, error) {
+	symlink := filepath.Join(dir, binaryName+"."+levelName)
+	if _, err := os.Stat(symlink); err == nil {
+		return symlink, nil
+	}
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return "", fmt.Errorf("could not read directory %s: %v", dir, err)
+	}
+	var foundFile string
+	for _, file := range files {
+		if strings.HasPrefix(file.Name(), binaryName) && strings.Contains(file.Name(), levelName) {
+			if foundFile != "" {
+				return "", fmt.Errorf("found multiple matching files")
+			}
+			foundFile = file.Name()
+		}
+	}
+	if foundFile != "" {
+		return filepath.Join(dir, foundFile), nil
+	}
+	return "", fmt.Errorf("file missing from directory")
 }
