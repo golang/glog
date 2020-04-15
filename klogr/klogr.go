@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"runtime"
 	"sort"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"k8s.io/klog/v2"
@@ -139,8 +140,11 @@ func pretty(value interface{}) string {
 			value = err.Error()
 		}
 	}
-	jb, _ := json.Marshal(value)
-	return string(jb)
+	buffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(buffer)
+	encoder.SetEscapeHTML(false)
+	encoder.Encode(value)
+	return strings.TrimSpace(string(buffer.Bytes()))
 }
 
 func (l klogger) Info(msg string, kvList ...interface{}) {

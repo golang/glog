@@ -68,6 +68,12 @@ func TestInfo(t *testing.T) {
 			expectedOutput: ` "msg"="test"  "akey"="avalue" "akey2"=null
 `,
 		},
+		"should correctly html characters": {
+			text:          "test",
+			keysAndValues: []interface{}{"akey", "<&>"},
+			expectedOutput: ` "msg"="test"  "akey"="<&>"
+`,
+		},
 		"should correctly handle odd-numbers of KVs in both log values and Info args": {
 			klogr:         New().WithValues("basekey1", "basevar1", "basekey2"),
 			text:          "test",
