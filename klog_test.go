@@ -241,6 +241,33 @@ func TestError(t *testing.T) {
 	}
 }
 
+// Test that an Error log does not goes to Warning and Info.
+// Even in the Info log, the source character will be E, so the data should
+// all be identical.
+func TestErrorWithOneOutput(t *testing.T) {
+	setFlags()
+	logging.oneOutput = true
+	buf := logging.newBuffers()
+	defer func() {
+		logging.swap(buf)
+		logging.oneOutput = false
+	}()
+	Error("test")
+	if !contains(errorLog, "E", t) {
+		t.Errorf("Error has wrong character: %q", contents(errorLog))
+	}
+	if !contains(errorLog, "test", t) {
+		t.Error("Error failed")
+	}
+	str := contents(errorLog)
+	if contains(warningLog, str, t) {
+		t.Error("Warning failed")
+	}
+	if contains(infoLog, str, t) {
+		t.Error("Info failed")
+	}
+}
+
 // Test that a Warning log goes to Info.
 // Even in the Info log, the source character will be W, so the data should
 // all be identical.
@@ -256,6 +283,30 @@ func TestWarning(t *testing.T) {
 	}
 	str := contents(warningLog)
 	if !contains(infoLog, str, t) {
+		t.Error("Info failed")
+	}
+}
+
+// Test that a Warning log does not goes to Info.
+// Even in the Info log, the source character will be W, so the data should
+// all be identical.
+func TestWarningWithOneOutput(t *testing.T) {
+	setFlags()
+	logging.oneOutput = true
+	buf := logging.newBuffers()
+	defer func() {
+		logging.swap(buf)
+		logging.oneOutput = false
+	}()
+	Warning("test")
+	if !contains(warningLog, "W", t) {
+		t.Errorf("Warning has wrong character: %q", contents(warningLog))
+	}
+	if !contains(warningLog, "test", t) {
+		t.Error("Warning failed")
+	}
+	str := contents(warningLog)
+	if contains(infoLog, str, t) {
 		t.Error("Info failed")
 	}
 }
