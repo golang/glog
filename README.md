@@ -37,22 +37,23 @@ The comment from glog.go introduces the ideas:
 	
 		glog.V(2).Infoln("Processed", nItems, "elements")
 
-	Example of using Glogger to add a prefix to logs:
 
-		func (db *DB) GetBook(id string) (*Book, error) {
-			g := &glog.Glogger{Prefix: "GetBook() "}
+Example of using Glogger to add a prefix to logs:
 
-			book, err := db.GetBook(id); if err != nil {
-				// Assume the message returned in err is "database connection timed out"
-				g.Error(err.Error()) // logs "GetBook() database connection timed out"
+	func (db *DB) GetBook(id string) (*Book, error) {
+		g := &glog.Glogger{Prefix: "GetBook() "}
 
-				return nil, errors.New("Some user friendly error")
-			}
+		book, err := db.GetBook(id); if err != nil {
+			// Assume the message returned in err is "database connection timed out"
+			g.Error(err.Error()) // logs "GetBook() database connection timed out"
 
-			// ...
-
-			return book, nil
+			return nil, errors.New("Some user friendly error")
 		}
+
+		// ...
+
+		return book, nil
+	}
 
 
 The repository contains an open source version of the log package
