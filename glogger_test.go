@@ -23,3 +23,22 @@ func TestSetPrefix(t *testing.T) {
 		}
 	}
 }
+
+func TestSetPrefixf(t *testing.T) {
+	g := &Glogger{Prefix: "zero "}
+	expected := "zero one two"
+	og := "one two"
+	withPre := setPrefixf(g, og)
+
+	if withPre != expected {
+		t.Errorf("Resulting string did not match expected: %q != %q", withPre, expected)
+	}
+
+	// Should fail to add prefix
+	g.Prefix = 0
+	withPre = setPrefixf(g, og)
+
+	if withPre != og {
+		t.Errorf("Resulting string was expected to be unchanged (%q). Intead we got: %q", og, withPre)
+	}
+}

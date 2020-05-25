@@ -7,6 +7,10 @@
 
 package glog
 
+import (
+	"fmt"
+)
+
 // Glogger provides a prefix to log args
 type Glogger struct {
 	Prefix interface{}
@@ -14,6 +18,15 @@ type Glogger struct {
 
 func setPrefix(g *Glogger, args []interface{}) []interface{} {
 	return append([]interface{}{g.Prefix}, args...)
+}
+
+func setPrefixf(g *Glogger, format string) string {
+	pre, ok := g.Prefix.(string)
+	if !ok {
+		pre = ""
+	}
+
+	return fmt.Sprintf("%s%s", pre, format)
 }
 
 // Info logs to the INFO log.
@@ -37,7 +50,7 @@ func (g *Glogger) Infoln(args ...interface{}) {
 // Infof logs to the INFO log.
 // Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
 func (g *Glogger) Infof(format string, args ...interface{}) {
-	Infof(format, setPrefix(g, args)...)
+	Infof(setPrefixf(g, format), args...)
 }
 
 // Warning logs to the WARNING and INFO logs.
@@ -61,7 +74,7 @@ func (g *Glogger) Warningln(args ...interface{}) {
 // Warningf logs to the WARNING and INFO logs.
 // Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
 func (g *Glogger) Warningf(format string, args ...interface{}) {
-	Warningf(format, setPrefix(g, args)...)
+	Warningf(setPrefixf(g, format), args...)
 }
 
 // Error logs to the ERROR, WARNING, and INFO logs.
@@ -85,10 +98,10 @@ func (g *Glogger) Errorln(args ...interface{}) {
 // Errorf logs to the ERROR, WARNING, and INFO logs.
 // Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
 func (g *Glogger) Errorf(format string, args ...interface{}) {
-	Errorf(format, setPrefix(g, args)...)
+	Errorf(setPrefixf(g, format), args...)
 }
 
-// Fatag logs to the FATAg, ERROR, WARNING, and INFO logs,
+// Fatal logs to the FATAg, ERROR, WARNING, and INFO logs,
 // including a stack trace of alg running goroutines, then calls os.Exit(255).
 // Arguments are handled in the manner of fmt.Print; a newline is appended if missing.
 func (g *Glogger) Fatal(args ...interface{}) {
@@ -112,7 +125,7 @@ func (g *Glogger) Fatalln(args ...interface{}) {
 // including a stack trace of alg running goroutines, then calls os.Exit(255).
 // Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
 func (g *Glogger) Fatalf(format string, args ...interface{}) {
-	Fatalf(format, setPrefix(g, args)...)
+	Fatalf(setPrefixf(g, format), args...)
 }
 
 // Exit logs to the FATAg, ERROR, WARNING, and INFO logs, then calls os.Exit(1).
@@ -135,5 +148,5 @@ func (g *Glogger) Exitln(args ...interface{}) {
 // Exitf logs to the FATAg, ERROR, WARNING, and INFO logs, then calls os.Exit(1).
 // Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
 func (g *Glogger) Exitf(format string, args ...interface{}) {
-	Exitf(format, setPrefix(g, args)...)
+	Exitf(setPrefixf(g, format), args...)
 }
