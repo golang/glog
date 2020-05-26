@@ -1,5 +1,3 @@
-github.com/golang/glog fork with added log namespacing per scope.
-
 glog
 ====
 
