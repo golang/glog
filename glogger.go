@@ -1,9 +1,7 @@
 // Glogger contains a copy of the exported glog logging functions but
 // it turns them into methods and allows adding prefixes to the logs.
-// This allows you "namespacing" the printout with something such as
-// the name of the function where that triggered it.
-
-// Eventually Glogger can be expanded to do more than simply add a prefix
+// This allows "namespacing" the printout with something such as
+// the name of the function that triggered it.
 
 package glog
 
