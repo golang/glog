@@ -1236,9 +1236,10 @@ func newVerbose(level Level, b bool) Verbose {
 // not evaluate its arguments.
 //
 // Whether an individual call to V generates a log record depends on the setting of
-// the -v and --vmodule flags; both are off by default. If the level in the call to
-// V is at least the value of -v, or of -vmodule for the source file containing the
-// call, the V call will log.
+// the -v and -vmodule flags; both are off by default. The V call will log if its level
+// is less than or equal to the value of the -v flag, or alternatively if its level is
+// less than or equal to the value of the -vmodule pattern matching the source file
+// containing the call.
 func V(level Level) Verbose {
 	// This function tries hard to be cheap unless there's work to do.
 	// The fast path is two atomic loads and compares.
