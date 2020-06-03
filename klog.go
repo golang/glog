@@ -802,7 +802,7 @@ func kvListFormat(b *bytes.Buffer, keysAndValues ...interface{}) {
 		b.WriteByte(' ')
 
 		switch v.(type) {
-		case string:
+		case string, error:
 			b.WriteString(fmt.Sprintf("%s=%q", k, v))
 		default:
 			if _, ok := v.(fmt.Stringer); ok {
