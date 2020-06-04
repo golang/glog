@@ -18,6 +18,7 @@ package klog
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -791,6 +792,16 @@ func TestInfoS(t *testing.T) {
 			msg:        "test",
 			format:     "I0102 15:04:05.067890    1234 klog_test.go:%d] \"test\" replicaNum=20\n",
 			keysValues: []interface{}{"replicaNum", 20},
+		},
+		{
+			msg:        "test",
+			format:     "I0102 15:04:05.067890    1234 klog_test.go:%d] \"test\" err=\"test error\"\n",
+			keysValues: []interface{}{"err", errors.New("test error")},
+		},
+		{
+			msg:        "test",
+			format:     "I0102 15:04:05.067890    1234 klog_test.go:%d] \"test\" err=\"test error\"\n",
+			keysValues: []interface{}{"err", errors.New("test error")},
 		},
 	}
 
