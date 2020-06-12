@@ -22,7 +22,7 @@ func TestInfo(t *testing.T) {
 	flag.Parse()
 
 	tests := map[string]struct {
-		klogr          logr.InfoLogger
+		klogr          logr.Logger
 		text           string
 		keysAndValues  []interface{}
 		expectedOutput string
