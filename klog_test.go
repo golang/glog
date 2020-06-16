@@ -820,6 +820,64 @@ func TestInfoS(t *testing.T) {
 	}
 }
 
+// Test that Verbose.InfoS works as advertised.
+func TestVInfoS(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+	timeNow = func() time.Time {
+		return time.Date(2006, 1, 2, 15, 4, 5, .067890e9, time.Local)
+	}
+	pid = 1234
+	var testDataInfo = []struct {
+		msg        string
+		format     string
+		keysValues []interface{}
+	}{
+		{
+			msg:        "test",
+			format:     "I0102 15:04:05.067890    1234 klog_test.go:%d] \"test\" pod=\"kubedns\"\n",
+			keysValues: []interface{}{"pod", "kubedns"},
+		},
+		{
+			msg:        "test",
+			format:     "I0102 15:04:05.067890    1234 klog_test.go:%d] \"test\" replicaNum=20\n",
+			keysValues: []interface{}{"replicaNum", 20},
+		},
+		{
+			msg:        "test",
+			format:     "I0102 15:04:05.067890    1234 klog_test.go:%d] \"test\" err=\"test error\"\n",
+			keysValues: []interface{}{"err", errors.New("test error")},
+		},
+	}
+
+	logging.verbosity.Set("2")
+	defer logging.verbosity.Set("0")
+
+	for l := Level(0); l < Level(4); l++ {
+		for _, data := range testDataInfo {
+			logging.file[infoLog] = &flushBuffer{}
+
+			V(l).InfoS(data.msg, data.keysValues...)
+
+			var want string
+			var line int
+			if l <= 2 {
+				n, err := fmt.Sscanf(contents(infoLog), data.format, &line)
+				if n != 1 || err != nil {
+					t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(infoLog))
+				}
+
+				want = fmt.Sprintf(data.format, line)
+			} else {
+				want = ""
+			}
+			if contents(infoLog) != want {
+				t.Errorf("V(%d).InfoS has unexpected output: \n got:\t%s\nwant:\t%s", l, contents(infoLog), want)
+			}
+		}
+	}
+}
+
 // Test that ErrorS works as advertised.
 func TestErrorS(t *testing.T) {
 	setFlags()

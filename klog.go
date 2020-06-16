@@ -1320,7 +1320,7 @@ func (v Verbose) Infof(format string, args ...interface{}) {
 // See the documentation of V for usage.
 func (v Verbose) InfoS(msg string, keysAndValues ...interface{}) {
 	if v.enabled {
-		logging.infoS(v.logr, msg, keysAndValues)
+		logging.infoS(v.logr, msg, keysAndValues...)
 	}
 }
 
