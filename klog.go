@@ -1333,7 +1333,7 @@ func (v Verbose) Error(err error, msg string, args ...interface{}) {
 
 // ErrorS is equivalent to the global Error function, guarded by the value of v.
 // See the documentation of V for usage.
-func (v Verbose) ErrorS(err error, msg string, args ...interface{}) {
+func (v Verbose) ErrorS(err error, msg string, keysAndValues ...interface{}) {
 	if v.enabled {
 		logging.errorS(err, v.logr, msg, args...)
 	}
