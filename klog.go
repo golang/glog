@@ -1086,11 +1086,19 @@ func (sb *syncBuffer) rotateFile(now time.Time, startup bool) error {
 	}
 	var err error
 	sb.file, _, err = create(severityName[sb.sev], now, startup)
-	sb.nbytes = 0
 	if err != nil {
 		return err
 	}
-
+	if startup {
+		fileInfo, err := sb.file.Stat()
+		if err != nil {
+			return fmt.Errorf("file stat could not get fileinfo: %v", err)
+		}
+		// init file size
+		sb.nbytes = uint64(fileInfo.Size())
+	} else {
+		sb.nbytes = 0
+	}
 	sb.Writer = bufio.NewWriterSize(sb.file, bufferSize)
 
 	if sb.logger.skipLogHeaders {
