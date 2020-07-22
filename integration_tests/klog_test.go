@@ -40,6 +40,12 @@ var (
 		2: {stackTraceRE, fatalLogRE, errorLogRE},
 		3: {stackTraceRE, fatalLogRE},
 	}
+	expectedOneOutputInDirREs = map[int]res{
+		0: {infoLogRE},
+		1: {warningLogRE},
+		2: {errorLogRE},
+		3: {fatalLogRE},
+	}
 
 	defaultNotExpectedInDirREs = map[int]res{
 		0: {},
@@ -135,6 +141,18 @@ func TestDestinationsWithDifferentFlags(t *testing.T) {
 			expectedInDir:       defaultExpectedInDirREs,
 			notExpectedInDir:    defaultNotExpectedInDirREs,
 		},
+		"with log dir only and one_output": {
+			// Everything, including the trace on fatal, goes to the log files in the log dir
+
+			logdir: true,
+			flags:  []string{"-logtostderr=false", "-alsologtostderr=false", "-stderrthreshold=1000", "-one_output=true"},
+
+			expectedLogDir: true,
+
+			notExpectedOnStderr: allLogREs,
+			expectedInDir:       expectedOneOutputInDirREs,
+			notExpectedInDir:    defaultNotExpectedInDirREs,
+		},
 		"with log dir and logtostderr": {
 			// Everything, including the trace on fatal, goes to stderr. The -log_dir is
 			// ignored, nothing goes to the log files in the log dir.
@@ -180,6 +198,19 @@ func TestDestinationsWithDifferentFlags(t *testing.T) {
 
 			expectedOnStderr: allLogREs,
 			expectedInDir:    defaultExpectedInDirREs,
+			notExpectedInDir: defaultNotExpectedInDirREs,
+		},
+		"with log dir, alsologtostderr and one_output": {
+			// Everything, including the trace on fatal, goes to the log file in the
+			// log dir AND to stderr.
+
+			logdir: true,
+			flags:  []string{"-alsologtostderr=true", "-logtostderr=false", "-stderrthreshold=1000", "-one_output=true"},
+
+			expectedLogDir: true,
+
+			expectedOnStderr: allLogREs,
+			expectedInDir:    expectedOneOutputInDirREs,
 			notExpectedInDir: defaultNotExpectedInDirREs,
 		},
 	}
