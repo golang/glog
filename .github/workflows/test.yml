@@ -41,7 +41,7 @@ jobs:
       - name: Add GOBIN to PATH
         run: echo "::add-path::$(go env GOPATH)/bin"
       - name: Install dependencies
-        run: go get golang.org/x/exp/cmd/apidiff
+        run: GO111MODULE=off go get golang.org/x/exp/cmd/apidiff
       - name: Checkout old code
         uses: actions/checkout@v2
         with:
