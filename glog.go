@@ -646,6 +646,15 @@ func (l *loggingT) printDepth(s severity, depth int, args ...interface{}) {
 	l.output(s, buf, file, line, false)
 }
 
+func (l *loggingT) printDepthf(s severity, depth int, format string, args ...interface{}) {
+	buf, file, line := l.header(s, depth)
+	fmt.Fprintf(buf, format, args...)
+	if buf.Bytes()[buf.Len()-1] != '\n' {
+		buf.WriteByte('\n')
+	}
+	l.output(s, buf, file, line, false)
+}
+
 func (l *loggingT) printf(s severity, format string, args ...interface{}) {
 	buf, file, line := l.header(s, 0)
 	fmt.Fprintf(buf, format, args...)
@@ -1061,6 +1070,12 @@ func InfoDepth(depth int, args ...interface{}) {
 	logging.printDepth(infoLog, depth, args...)
 }
 
+// InfoDepthf acts as Info but uses depth to determine which call frame to log,
+// Arguments format and args act as Infof.
+func InfoDepthf(depth int, format string, args ...interface{}) {
+	logging.printDepthf(infoLog, depth, format, args...)
+}
+
 // Infoln logs to the INFO log.
 // Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
 func Infoln(args ...interface{}) {
@@ -1083,6 +1098,12 @@ func Warning(args ...interface{}) {
 // WarningDepth(0, "msg") is the same as Warning("msg").
 func WarningDepth(depth int, args ...interface{}) {
 	logging.printDepth(warningLog, depth, args...)
+}
+
+// WarningDepthf acts as Warning but uses depth to determine which call frame to log,
+// Arguments format and args act as Warningf.
+func WarningDepthf(depth int, format string, args ...interface{}) {
+	logging.printDepthf(warningLog, depth, format, args...)
 }
 
 // Warningln logs to the WARNING and INFO logs.
@@ -1109,6 +1130,12 @@ func ErrorDepth(depth int, args ...interface{}) {
 	logging.printDepth(errorLog, depth, args...)
 }
 
+// ErrorDepthf acts as Error but uses depth to determine which call frame to log.
+// Arguments format and args act as Errorf.
+func ErrorDepthf(depth int, format string, args ...interface{}) {
+	logging.printDepthf(errorLog, depth, format, args...)
+}
+
 // Errorln logs to the ERROR, WARNING, and INFO logs.
 // Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
 func Errorln(args ...interface{}) {
@@ -1132,6 +1159,12 @@ func Fatal(args ...interface{}) {
 // FatalDepth(0, "msg") is the same as Fatal("msg").
 func FatalDepth(depth int, args ...interface{}) {
 	logging.printDepth(fatalLog, depth, args...)
+}
+
+// FatalDepthf acts as Fatal but uses depth to determine which call frame to log,
+// Arguments format and args act as Exitf.
+func FatalDepthf(depth int, format string, args ...interface{}) {
+	logging.printDepthf(fatalLog, depth, format, args...)
 }
 
 // Fatalln logs to the FATAL, ERROR, WARNING, and INFO logs,
@@ -1164,6 +1197,12 @@ func Exit(args ...interface{}) {
 func ExitDepth(depth int, args ...interface{}) {
 	atomic.StoreUint32(&fatalNoStacks, 1)
 	logging.printDepth(fatalLog, depth, args...)
+}
+
+// ExitDepthf acts as Exit but uses depth to determine which call frame to log,
+// Arguments format and args act as Exitf.
+func ExitDepthf(depth int, format string, args ...interface{}) {
+	logging.printDepthf(fatalLog, depth, format, args...)
 }
 
 // Exitln logs to the FATAL, ERROR, WARNING, and INFO logs, then calls os.Exit(1).
