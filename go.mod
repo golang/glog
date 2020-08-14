@@ -1,3 +1,3 @@
-module github.com/golang/glog
+module github.com/hungrybirder/glog
 
 go 1.14
