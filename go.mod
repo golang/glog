@@ -1,3 +1,3 @@
-module github.com/hungrybirder/glog
+module github.com/hungrybirder/slog
 
 go 1.14
