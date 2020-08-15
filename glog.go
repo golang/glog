@@ -3,6 +3,7 @@ package glog
 import (
 	"flag"
 	"io"
+	"os"
 	"time"
 )
 
@@ -39,5 +40,7 @@ func initGlobalLogging() {
 	logging.stderrThreshold = errorLog
 
 	logging.setVState(0, nil, false)
+
+	slogFlagSet.Parse(os.Args[1:])
 	go logging.flushDaemon()
 }
