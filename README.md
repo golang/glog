@@ -1,6 +1,6 @@
 # github.com/hungrybirder/slog #
 
-1. Clone from  because [glog] of [issue45](https://github.com/golang/glog/pull/45).
+1. Clone from  because of [glog#issue45](https://github.com/golang/glog/pull/45).
 
 2. [slog] is compatible with [glog] flags.
 
