@@ -1,19 +1,29 @@
-# github.com/hungrybirder/glog #
+# github.com/hungrybirder/slog #
 
-Clone from [glog](https://github.com/golang/glog) because of [issue45](https://github.com/golang/glog/pull/45).
+1. Clone from  because [glog] of [issue45](https://github.com/golang/glog/pull/45).
+
+2. [slog] is compatible with [glog] flags.
+
+3. [slog] and [glog] can be used both in your project.
+
+
+## Install ##
+
+`go get github.com/hungrybirder/slog`
 
 ## Usage ##
 
-Please __DON'T__ `import "github.com/hungrybirder/glog"` in your code.
+```
+import "github.com/hungrybirder/slog"
 
-__Do `import "github.com/golang/glog"`__ and
-replace `github.com/golang/glog` to `github.com/hungrybirder/glog`.
-
-```bash
-go mod edit -replace github.com/golang/glog=github.com/hungrybirder/glog@v1.0.0
+slog.Error("hello slog")
+slog.Errorf("%s slog", "Have a nice day")
 ```
 
-## Add *Depthf Functions ##
+
+## More features ##
+
+### Add *Depthf Functions ###
 
 * __func InfoDepthf(depth int, format string, args ...interface{})__
 
@@ -24,3 +34,6 @@ go mod edit -replace github.com/golang/glog=github.com/hungrybirder/glog@v1.0.0
 * __func FatalDepthf(depth int, format string, args ...interface{})__
 
 * __func ExitDepthf(depth int, format string, args ...interface{}__
+
+[glog]: https://github.com/golang/glog
+[slog]: https://github.com/hungrybirder/slog
