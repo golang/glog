@@ -70,7 +70,7 @@ func initLogging() {
 		vms.Set(vmoduleFlag.Value.String())
 	}
 
-	traceLocationFlag := flag.Lookup("traceLocation")
+	traceLocationFlag := flag.Lookup("log_backtrace_at")
 	if traceLocationFlag != nil {
 		var tl traceLocation
 		tl.Set(traceLocationFlag.Value.String())
