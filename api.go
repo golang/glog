@@ -4,19 +4,22 @@ import (
 	"fmt"
 	stdLog "log"
 	"os"
+	"strings"
 	"sync/atomic"
 )
 
 func beforeParseOutput(args ...interface{}) {
-	fmt.Fprint(os.Stderr, "ERROR: slog before flag.Parse(): ")
-	fmt.Fprint(os.Stderr, args...)
-	fmt.Fprintln(os.Stderr)
+	var sb strings.Builder
+	sb.WriteString("ERROR: slog before flag.Parse():")
+	sb.WriteString(fmt.Sprint(args...))
+	fmt.Fprintln(os.Stderr, sb.String())
 }
 
 func beforeParseOutputf(format string, args ...interface{}) {
-	fmt.Fprint(os.Stderr, "ERROR: slog before flag.Parse(): ")
-	fmt.Fprintf(os.Stderr, format, args...)
-	fmt.Fprintln(os.Stderr)
+	var sb strings.Builder
+	sb.WriteString("ERROR: slog before flag.Parse():")
+	sb.WriteString(fmt.Sprintf(format, args...))
+	fmt.Fprintln(os.Stderr, sb.String())
 }
 
 // Info logs to the INFO log.
