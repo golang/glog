@@ -33,4 +33,4 @@
 
 -vmodule value
 
-    设置 module verbose 级别
+    设置 module verbose 级别， 比如 go run main.go -vmodule=main=3,hello=2
