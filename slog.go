@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	logging     *loggingT
+	// logging     *loggingT
+	logging     loggingT
 	loggingOnce sync.Once
 )
 
@@ -26,6 +27,15 @@ type flushSyncWriter interface {
 	io.Writer
 }
 
+// InitLogging 初始化 slog
+func InitLogging() bool {
+	if flag.Parsed() {
+		loggingOnce.Do(initLogging)
+		return true
+	}
+	return false
+}
+
 // initLogging
 // 在API函数之前初始化一次
 // 结合 loggingOnce 使用 loggingOnce.Do(initLogging)
@@ -35,7 +45,7 @@ type flushSyncWriter interface {
 // 等待glog go test XXXX 处理完flag后 slog才能Lookup已经处理的flags
 func initLogging() {
 	initLogFile()
-	logging = new(loggingT)
+	// logging = new(loggingT)
 	logtostderrFlag := flag.Lookup("logtostderr")
 	if logtostderrFlag == nil {
 		logging.toStderr = false

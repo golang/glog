@@ -24,7 +24,9 @@ type Verbose bool
 // V is at least the value of -v, or of -vmodule for the source file containing the
 // call, the V call will log.
 func V(level Level) Verbose {
-	loggingOnce.Do(initLogging)
+	if !InitLogging() {
+		return Verbose(false)
+	}
 	// This function tries hard to be cheap unless there's work to do.
 	// The fast path is two atomic loads and compares.
 
@@ -56,6 +58,10 @@ func V(level Level) Verbose {
 // Info is equivalent to the global Info function, guarded by the value of v.
 // See the documentation of V for usage.
 func (v Verbose) Info(args ...interface{}) {
+	if !InitLogging() {
+		beforeParseOutput(args...)
+		return
+	}
 	if v {
 		logging.print(infoLog, args...)
 	}
@@ -64,6 +70,10 @@ func (v Verbose) Info(args ...interface{}) {
 // Infoln is equivalent to the global Infoln function, guarded by the value of v.
 // See the documentation of V for usage.
 func (v Verbose) Infoln(args ...interface{}) {
+	if !InitLogging() {
+		beforeParseOutput(args...)
+		return
+	}
 	if v {
 		logging.println(infoLog, args...)
 	}
@@ -72,6 +82,10 @@ func (v Verbose) Infoln(args ...interface{}) {
 // Infof is equivalent to the global Infof function, guarded by the value of v.
 // See the documentation of V for usage.
 func (v Verbose) Infof(format string, args ...interface{}) {
+	if !InitLogging() {
+		beforeParseOutputf(format, args...)
+		return
+	}
 	if v {
 		logging.printf(infoLog, format, args...)
 	}

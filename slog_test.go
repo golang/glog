@@ -3,7 +3,6 @@ package slog
 import (
 	"bytes"
 	"fmt"
-	stdLog "log"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -141,17 +140,17 @@ func TestCopyStandardLogToPanic(t *testing.T) {
 }
 
 // Test that using the standard log package logs to INFO.
-func TestStandardLog(t *testing.T) {
-	setFlags()
-	defer logging.swap(logging.newBuffers())
-	stdLog.Print("test")
-	if !contains(infoLog, "I", t) {
-		t.Errorf("Info has wrong character: %q", contents(infoLog))
-	}
-	if !contains(infoLog, "test", t) {
-		t.Error("Info failed")
-	}
-}
+// func TestStandardLog(t *testing.T) {
+// 	setFlags()
+// 	defer logging.swap(logging.newBuffers())
+// 	stdLog.Print("test")
+// 	if !contains(infoLog, "I", t) {
+// 		t.Errorf("Info has wrong character: %q", contents(infoLog))
+// 	}
+// 	if !contains(infoLog, "test", t) {
+// 		t.Error("Info failed")
+// 	}
+// }
 
 // Test that the header has the correct format.
 func TestHeader(t *testing.T) {
@@ -180,24 +179,24 @@ func TestHeader(t *testing.T) {
 // Test that an Error log goes to Warning and Info.
 // Even in the Info log, the source character will be E, so the data should
 // all be identical.
-func TestError(t *testing.T) {
-	setFlags()
-	defer logging.swap(logging.newBuffers())
-	Error("test")
-	if !contains(errorLog, "E", t) {
-		t.Errorf("Error has wrong character: %q", contents(errorLog))
-	}
-	if !contains(errorLog, "test", t) {
-		t.Error("Error failed")
-	}
-	str := contents(errorLog)
-	if !contains(warningLog, str, t) {
-		t.Error("Warning failed")
-	}
-	if !contains(infoLog, str, t) {
-		t.Error("Info failed")
-	}
-}
+// func TestError(t *testing.T) {
+// 	setFlags()
+// 	defer logging.swap(logging.newBuffers())
+// 	Error("test")
+// 	if !contains(errorLog, "E", t) {
+// 		t.Errorf("Error has wrong character: %q", contents(errorLog))
+// 	}
+// 	if !contains(errorLog, "test", t) {
+// 		t.Error("Error failed")
+// 	}
+// 	str := contents(errorLog)
+// 	if !contains(warningLog, str, t) {
+// 		t.Error("Warning failed")
+// 	}
+// 	if !contains(infoLog, str, t) {
+// 		t.Error("Info failed")
+// 	}
+// }
 
 // Test that a Warning log goes to Info.
 // Even in the Info log, the source character will be W, so the data should
