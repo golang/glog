@@ -49,32 +49,28 @@ func initLogging() {
 		logging.alsoToStderr, _ = strconv.ParseBool(alsologtostderrFlag.Value.String())
 	}
 
-	vFlag := flag.Lookup("v")
-	if vFlag != nil {
-		var vb Level
-		vb.Set(vFlag.Value.String())
-	}
-	logging.setVState(0, nil, false)
-
 	stderrThresholdFlag := flag.Lookup("stderrthreshold")
 	if stderrThresholdFlag != nil {
-		var sv severity
-		sv.Set(stderrThresholdFlag.Value.String())
+		logging.stderrThreshold.Set(stderrThresholdFlag.Value.String())
 	} else {
 		logging.stderrThreshold = errorLog
 	}
 
+	vFlag := flag.Lookup("v")
+	if vFlag != nil {
+		logging.verbosity.Set(vFlag.Value.String())
+	} else {
+		logging.setVState(0, nil, false)
+	}
+
 	vmoduleFlag := flag.Lookup("vmodule")
 	if vmoduleFlag != nil {
-		var vms moduleSpec
-		vms.Set(vmoduleFlag.Value.String())
+		logging.vmodule.Set(vmoduleFlag.Value.String())
 	}
 
 	traceLocationFlag := flag.Lookup("log_backtrace_at")
 	if traceLocationFlag != nil {
-		var tl traceLocation
-		tl.Set(traceLocationFlag.Value.String())
-		logging.traceLocation = tl
+		logging.traceLocation.Set(traceLocationFlag.Value.String())
 	}
 
 	logDirFlag := flag.Lookup("log_dir")

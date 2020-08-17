@@ -24,6 +24,7 @@ type Verbose bool
 // V is at least the value of -v, or of -vmodule for the source file containing the
 // call, the V call will log.
 func V(level Level) Verbose {
+	loggingOnce.Do(initLogging)
 	// This function tries hard to be cheap unless there's work to do.
 	// The fast path is two atomic loads and compares.
 
