@@ -309,3 +309,21 @@ func (v Verbose) Infof(format string, args ...interface{}) {
 		logging.printf(infoLog, format, args...)
 	}
 }
+
+// InfoDepthf is equivalent to the global InfoDepthf function, guarded by the value of v.
+// See the documentation of V for usage.
+func (v Verbose) InfoDepthf(depth int, format string, args ...interface{}) {
+	InitLogging()
+	if v {
+		logging.printDepthf(infoLog, depth, format, args...)
+	}
+}
+
+// InfoDepth is equivalent to the global InfoDepth function, guarded by the value of v.
+// See the documentation of V for usage.
+func (v Verbose) InfoDepth(depth int, args ...interface{}) {
+	InitLogging()
+	if v {
+		logging.printDepth(infoLog, depth, args...)
+	}
+}
