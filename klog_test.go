@@ -1215,15 +1215,15 @@ func TestLogFilter(t *testing.T) {
 	}}
 
 	testcases := []struct {
-		name   string
-		args   []interface{}
-		expect bool
+		name           string
+		args           []interface{}
+		expectFiltered bool
 	}{{
-		args:   []interface{}{"foo", "bar"},
-		expect: false,
+		args:           []interface{}{"foo", "bar"},
+		expectFiltered: false,
 	}, {
-		args:   []interface{}{"foo", "filter me"},
-		expect: true,
+		args:           []interface{}{"foo", "filter me"},
+		expectFiltered: true,
 	}}
 
 	for _, f := range funcs {
@@ -1231,8 +1231,8 @@ func TestLogFilter(t *testing.T) {
 			logging.newBuffers()
 			f.logFunc(tc.args...)
 			got := contains(f.severity, "[FILTERED]", t)
-			if got != tc.expect {
-				t.Errorf("%s filter application failed, got %v, want %v", f.name, got, tc.expect)
+			if got != tc.expectFiltered {
+				t.Errorf("%s filter application failed, got %v, want %v", f.name, got, tc.expectFiltered)
 			}
 		}
 	}
