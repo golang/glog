@@ -1080,7 +1080,7 @@ type sampleLogFilter struct{}
 func (f *sampleLogFilter) Filter(args []interface{}) []interface{} {
 	for i, arg := range args {
 		v, ok := arg.(string)
-		if ok && v == "filter me" {
+		if ok && strings.Contains(v, "filter me") {
 			args[i] = "[FILTERED]"
 		}
 	}
@@ -1088,11 +1088,11 @@ func (f *sampleLogFilter) Filter(args []interface{}) []interface{} {
 }
 
 func (f *sampleLogFilter) FilterF(format string, args []interface{}) (string, []interface{}) {
-	return format, f.Filter(args)
+	return strings.Replace(format, "filter me", "[FILTERED]", 1), f.Filter(args)
 }
 
 func (f *sampleLogFilter) FilterS(msg string, keysAndValues []interface{}) (string, []interface{}) {
-	return msg, f.Filter(keysAndValues)
+	return strings.Replace(msg, "filter me", "[FILTERED]", 1), f.Filter(keysAndValues)
 }
 
 func TestLogFilter(t *testing.T) {
@@ -1121,13 +1121,14 @@ func TestLogFilter(t *testing.T) {
 	}, {
 		name: "Infof",
 		logFunc: func(args ...interface{}) {
-			Infof("%s=%s", args...)
+
+			Infof(args[0].(string), args[1:]...)
 		},
 		severity: infoLog,
 	}, {
 		name: "InfoS",
 		logFunc: func(args ...interface{}) {
-			InfoS("msg", args...)
+			InfoS(args[0].(string), args[1:]...)
 		},
 		severity: infoLog,
 	}, {
@@ -1147,7 +1148,7 @@ func TestLogFilter(t *testing.T) {
 	}, {
 		name: "Warningf",
 		logFunc: func(args ...interface{}) {
-			Warningf("%s=%s", args...)
+			Warningf(args[0].(string), args[1:]...)
 		},
 		severity: warningLog,
 	}, {
@@ -1167,13 +1168,13 @@ func TestLogFilter(t *testing.T) {
 	}, {
 		name: "Errorf",
 		logFunc: func(args ...interface{}) {
-			Errorf("%s=%s", args...)
+			Errorf(args[0].(string), args[1:]...)
 		},
 		severity: errorLog,
 	}, {
 		name: "ErrorS",
 		logFunc: func(args ...interface{}) {
-			ErrorS(errors.New("testerror"), "msg", args...)
+			ErrorS(errors.New("testerror"), args[0].(string), args[1:]...)
 		},
 		severity: errorLog,
 	}, {
@@ -1191,25 +1192,25 @@ func TestLogFilter(t *testing.T) {
 	}, {
 		name: "V().Infof",
 		logFunc: func(args ...interface{}) {
-			V(0).Infof("%s:%s", args...)
+			V(0).Infof(args[0].(string), args[1:]...)
 		},
 		severity: infoLog,
 	}, {
 		name: "V().InfoS",
 		logFunc: func(args ...interface{}) {
-			V(0).InfoS("msg", args...)
+			V(0).InfoS(args[0].(string), args[1:]...)
 		},
 		severity: infoLog,
 	}, {
 		name: "V().Error",
 		logFunc: func(args ...interface{}) {
-			V(0).Error(errors.New("test error"), "error message", args...)
+			V(0).Error(errors.New("test error"), args[0].(string), args[1:]...)
 		},
 		severity: errorLog,
 	}, {
 		name: "V().ErrorS",
 		logFunc: func(args ...interface{}) {
-			V(0).ErrorS(errors.New("test error"), "error message", args...)
+			V(0).ErrorS(errors.New("test error"), args[0].(string), args[1:]...)
 		},
 		severity: errorLog,
 	}}
@@ -1219,10 +1220,13 @@ func TestLogFilter(t *testing.T) {
 		args           []interface{}
 		expectFiltered bool
 	}{{
-		args:           []interface{}{"foo", "bar"},
+		args:           []interface{}{"%s:%s", "foo", "bar"},
 		expectFiltered: false,
 	}, {
-		args:           []interface{}{"foo", "filter me"},
+		args:           []interface{}{"%s:%s", "foo", "filter me"},
+		expectFiltered: true,
+	}, {
+		args:           []interface{}{"filter me %s:%s", "foo", "bar"},
 		expectFiltered: true,
 	}}
 
