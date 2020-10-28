@@ -1077,6 +1077,173 @@ func TestSetVState(t *testing.T) {
 	}
 }
 
+type sampleLogFilter struct{}
+
+func (f *sampleLogFilter) Filter(args []interface{}) []interface{} {
+	for i, arg := range args {
+		v, ok := arg.(string)
+		if ok && strings.Contains(v, "filter me") {
+			args[i] = "[FILTERED]"
+		}
+	}
+	return args
+}
+
+func (f *sampleLogFilter) FilterF(format string, args []interface{}) (string, []interface{}) {
+	return strings.Replace(format, "filter me", "[FILTERED]", 1), f.Filter(args)
+}
+
+func (f *sampleLogFilter) FilterS(msg string, keysAndValues []interface{}) (string, []interface{}) {
+	return strings.Replace(msg, "filter me", "[FILTERED]", 1), f.Filter(keysAndValues)
+}
+
+func TestLogFilter(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+	SetLogFilter(&sampleLogFilter{})
+	defer SetLogFilter(nil)
+	funcs := []struct {
+		name     string
+		logFunc  func(args ...interface{})
+		severity severity
+	}{{
+		name:     "Info",
+		logFunc:  Info,
+		severity: infoLog,
+	}, {
+		name: "InfoDepth",
+		logFunc: func(args ...interface{}) {
+			InfoDepth(1, args...)
+		},
+		severity: infoLog,
+	}, {
+		name:     "Infoln",
+		logFunc:  Infoln,
+		severity: infoLog,
+	}, {
+		name: "Infof",
+		logFunc: func(args ...interface{}) {
+
+			Infof(args[0].(string), args[1:]...)
+		},
+		severity: infoLog,
+	}, {
+		name: "InfoS",
+		logFunc: func(args ...interface{}) {
+			InfoS(args[0].(string), args[1:]...)
+		},
+		severity: infoLog,
+	}, {
+		name:     "Warning",
+		logFunc:  Warning,
+		severity: warningLog,
+	}, {
+		name: "WarningDepth",
+		logFunc: func(args ...interface{}) {
+			WarningDepth(1, args...)
+		},
+		severity: warningLog,
+	}, {
+		name:     "Warningln",
+		logFunc:  Warningln,
+		severity: warningLog,
+	}, {
+		name: "Warningf",
+		logFunc: func(args ...interface{}) {
+			Warningf(args[0].(string), args[1:]...)
+		},
+		severity: warningLog,
+	}, {
+		name:     "Error",
+		logFunc:  Error,
+		severity: errorLog,
+	}, {
+		name: "ErrorDepth",
+		logFunc: func(args ...interface{}) {
+			ErrorDepth(1, args...)
+		},
+		severity: errorLog,
+	}, {
+		name:     "Errorln",
+		logFunc:  Errorln,
+		severity: errorLog,
+	}, {
+		name: "Errorf",
+		logFunc: func(args ...interface{}) {
+			Errorf(args[0].(string), args[1:]...)
+		},
+		severity: errorLog,
+	}, {
+		name: "ErrorS",
+		logFunc: func(args ...interface{}) {
+			ErrorS(errors.New("testerror"), args[0].(string), args[1:]...)
+		},
+		severity: errorLog,
+	}, {
+		name: "V().Info",
+		logFunc: func(args ...interface{}) {
+			V(0).Info(args...)
+		},
+		severity: infoLog,
+	}, {
+		name: "V().Infoln",
+		logFunc: func(args ...interface{}) {
+			V(0).Infoln(args...)
+		},
+		severity: infoLog,
+	}, {
+		name: "V().Infof",
+		logFunc: func(args ...interface{}) {
+			V(0).Infof(args[0].(string), args[1:]...)
+		},
+		severity: infoLog,
+	}, {
+		name: "V().InfoS",
+		logFunc: func(args ...interface{}) {
+			V(0).InfoS(args[0].(string), args[1:]...)
+		},
+		severity: infoLog,
+	}, {
+		name: "V().Error",
+		logFunc: func(args ...interface{}) {
+			V(0).Error(errors.New("test error"), args[0].(string), args[1:]...)
+		},
+		severity: errorLog,
+	}, {
+		name: "V().ErrorS",
+		logFunc: func(args ...interface{}) {
+			V(0).ErrorS(errors.New("test error"), args[0].(string), args[1:]...)
+		},
+		severity: errorLog,
+	}}
+
+	testcases := []struct {
+		name           string
+		args           []interface{}
+		expectFiltered bool
+	}{{
+		args:           []interface{}{"%s:%s", "foo", "bar"},
+		expectFiltered: false,
+	}, {
+		args:           []interface{}{"%s:%s", "foo", "filter me"},
+		expectFiltered: true,
+	}, {
+		args:           []interface{}{"filter me %s:%s", "foo", "bar"},
+		expectFiltered: true,
+	}}
+
+	for _, f := range funcs {
+		for _, tc := range testcases {
+			logging.newBuffers()
+			f.logFunc(tc.args...)
+			got := contains(f.severity, "[FILTERED]", t)
+			if got != tc.expectFiltered {
+				t.Errorf("%s filter application failed, got %v, want %v", f.name, got, tc.expectFiltered)
+			}
+		}
+	}
+}
+
 func TestInfoSWithLogr(t *testing.T) {
 	logger := new(testLogr)
 
