@@ -777,7 +777,7 @@ func (l *loggingT) errorS(err error, loggr logr.Logger, filter LogFilter, msg st
 		msg, keysAndValues = filter.FilterS(msg, keysAndValues)
 	}
 	if loggr != nil {
-		loggr.Error(err, msg, keysAndValues)
+		loggr.Error(err, msg, keysAndValues...)
 		return
 	}
 	l.printS(err, msg, keysAndValues...)
@@ -789,7 +789,7 @@ func (l *loggingT) infoS(loggr logr.Logger, filter LogFilter, msg string, keysAn
 		msg, keysAndValues = filter.FilterS(msg, keysAndValues)
 	}
 	if loggr != nil {
-		loggr.Info(msg, keysAndValues)
+		loggr.Info(msg, keysAndValues...)
 		return
 	}
 	l.printS(nil, msg, keysAndValues...)

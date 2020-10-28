@@ -21,10 +21,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/go-logr/logr"
 	"io/ioutil"
 	stdLog "log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -1240,4 +1242,157 @@ func TestLogFilter(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestInfoSWithLogr(t *testing.T) {
+	logger := new(testLogr)
+
+	testDataInfo := []struct {
+		msg        string
+		keysValues []interface{}
+		expected   testLogrEntry
+	}{{
+		msg:        "foo",
+		keysValues: []interface{}{},
+		expected: testLogrEntry{
+			severity:      infoLog,
+			msg:           "foo",
+			keysAndValues: []interface{}{},
+		},
+	}, {
+		msg:        "bar",
+		keysValues: []interface{}{"a", 1},
+		expected: testLogrEntry{
+			severity:      infoLog,
+			msg:           "bar",
+			keysAndValues: []interface{}{"a", 1},
+		},
+	}}
+
+	for _, data := range testDataInfo {
+		t.Run(data.msg, func(t *testing.T) {
+			SetLogger(logger)
+			defer SetLogger(nil)
+			defer logger.reset()
+
+			InfoS(data.msg, data.keysValues...)
+
+			if !reflect.DeepEqual(logger.entries, []testLogrEntry{data.expected}) {
+				t.Errorf("expected: %+v; but got: %+v", []testLogrEntry{data.expected}, logger.entries)
+			}
+		})
+	}
+}
+
+func TestErrorSWithLogr(t *testing.T) {
+	logger := new(testLogr)
+
+	testError := errors.New("testError")
+
+	testDataInfo := []struct {
+		err        error
+		msg        string
+		keysValues []interface{}
+		expected   testLogrEntry
+	}{{
+		err:        testError,
+		msg:        "foo1",
+		keysValues: []interface{}{},
+		expected: testLogrEntry{
+			severity:      errorLog,
+			msg:           "foo1",
+			keysAndValues: []interface{}{},
+			err:           testError,
+		},
+	}, {
+		err:        testError,
+		msg:        "bar1",
+		keysValues: []interface{}{"a", 1},
+		expected: testLogrEntry{
+			severity:      errorLog,
+			msg:           "bar1",
+			keysAndValues: []interface{}{"a", 1},
+			err:           testError,
+		},
+	}, {
+		err:        nil,
+		msg:        "foo2",
+		keysValues: []interface{}{},
+		expected: testLogrEntry{
+			severity:      errorLog,
+			msg:           "foo2",
+			keysAndValues: []interface{}{},
+			err:           nil,
+		},
+	}, {
+		err:        nil,
+		msg:        "bar2",
+		keysValues: []interface{}{"a", 1},
+		expected: testLogrEntry{
+			severity:      errorLog,
+			msg:           "bar2",
+			keysAndValues: []interface{}{"a", 1},
+			err:           nil,
+		},
+	}}
+
+	for _, data := range testDataInfo {
+		t.Run(data.msg, func(t *testing.T) {
+			SetLogger(logger)
+			defer SetLogger(nil)
+			defer logger.reset()
+
+			ErrorS(data.err, data.msg, data.keysValues...)
+
+			if !reflect.DeepEqual(logger.entries, []testLogrEntry{data.expected}) {
+				t.Errorf("expected: %+v; but got: %+v", []testLogrEntry{data.expected}, logger.entries)
+			}
+		})
+	}
+}
+
+type testLogr struct {
+	entries []testLogrEntry
+	mutex   sync.Mutex
+}
+
+type testLogrEntry struct {
+	severity      severity
+	msg           string
+	keysAndValues []interface{}
+	err           error
+}
+
+func (l *testLogr) reset() {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	l.entries = []testLogrEntry{}
+}
+
+func (l *testLogr) Info(msg string, keysAndValues ...interface{}) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	l.entries = append(l.entries, testLogrEntry{
+		severity:      infoLog,
+		msg:           msg,
+		keysAndValues: keysAndValues,
+	})
+}
+
+func (l *testLogr) Error(err error, msg string, keysAndValues ...interface{}) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	l.entries = append(l.entries, testLogrEntry{
+		severity:      errorLog,
+		msg:           msg,
+		keysAndValues: keysAndValues,
+		err:           err,
+	})
+}
+
+func (l *testLogr) Enabled() bool               { panic("not implemented") }
+func (l *testLogr) V(int) logr.Logger           { panic("not implemented") }
+func (l *testLogr) WithName(string) logr.Logger { panic("not implemented") }
+func (l *testLogr) WithValues(...interface{}) logr.Logger {
+	panic("not implemented")
 }
