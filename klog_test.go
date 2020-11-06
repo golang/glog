@@ -21,7 +21,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/go-logr/logr"
 	"io/ioutil"
 	stdLog "log"
 	"os"
@@ -34,6 +33,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-logr/logr"
 )
 
 // TODO: This test package should be refactored so that tests cannot
@@ -530,9 +531,7 @@ func TestOpenAppendOnStart(t *testing.T) {
 	if !ok {
 		t.Fatal("info wasn't created")
 	}
-	if err != nil {
-		t.Fatalf("info has initial error: %v", err)
-	}
+
 	// ensure we wrote what we expected
 	logging.flushAll()
 	b, err := ioutil.ReadFile(logging.logFile)
@@ -548,7 +547,7 @@ func TestOpenAppendOnStart(t *testing.T) {
 		logging.file[i] = nil
 	}
 
-	// Logging agagin should open the file again with O_APPEND instead of O_TRUNC
+	// Logging again should open the file again with O_APPEND instead of O_TRUNC
 	Info(y)
 	// ensure we wrote what we expected
 	logging.lockAndFlushAll()
