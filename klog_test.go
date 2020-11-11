@@ -1395,3 +1395,36 @@ func (l *testLogr) WithName(string) logr.Logger { panic("not implemented") }
 func (l *testLogr) WithValues(...interface{}) logr.Logger {
 	panic("not implemented")
 }
+
+// existedFlag contains all existed flag, without KlogPrefix
+var existedFlag = map[string]struct{}{
+	"log_dir":           {},
+	"add_dir_header":    {},
+	"alsologtostderr":   {},
+	"log_backtrace_at":  {},
+	"log_file":          {},
+	"log_file_max_size": {},
+	"logtostderr":       {},
+	"one_output":        {},
+	"skip_headers":      {},
+	"skip_log_headers":  {},
+	"stderrthreshold":   {},
+	"v":                 {},
+	"vmodule":           {},
+}
+
+// KlogPrefix define new flag prefix
+const KlogPrefix string = "klog"
+
+// TestKlogFlagPrefix check every klog flag's prefix, exclude flag in existedFlag
+func TestKlogFlagPrefix(t *testing.T) {
+	fs := &flag.FlagSet{}
+	InitFlags(fs)
+	fs.VisitAll(func(f *flag.Flag) {
+		if _, found := existedFlag[f.Name]; !found {
+			if !strings.HasPrefix(f.Name, KlogPrefix) {
+				t.Errorf("flag %s not have klog prefix: %s", f.Name, KlogPrefix)
+			}
+		}
+	})
+}
