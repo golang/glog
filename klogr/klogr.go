@@ -14,19 +14,54 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// Option is a functional option that reconfigures the logger created with New.
+type Option func(*klogger)
+
+// Format defines how log output is produced.
+type Format string
+
+const (
+	// FormatSerialize tells klogr to turn key/value pairs into text itself
+	// before invoking klog.
+	FormatSerialize Format = "Serialize"
+
+	// FormatKlog tells klogr to pass all text messages and key/value pairs
+	// directly to klog. Klog itself then serializes in a human-readable
+	// format and optionally passes on to a structure logging backend.
+	FormatKlog Format = "Klog"
+)
+
+// WithFormat selects the output format. Default is FormatSerialize as in
+// previous releases of klog.
+func WithFormat(format Format) Option {
+	return func(l *klogger) {
+		l.format = format
+	}
+}
+
 // New returns a logr.Logger which is implemented by klog.
-func New() logr.Logger {
-	return klogger{
+//
+// Whether it serializes key/value pairs itself (the traditional
+// behavior, enabled by default) or lets klog do that is configurable
+// via the Format option.
+func New(options ...Option) logr.Logger {
+	l := klogger{
 		level:  0,
 		prefix: "",
 		values: nil,
+		format: FormatSerialize,
 	}
+	for _, option := range options {
+		option(&l)
+	}
+	return l
 }
 
 type klogger struct {
 	level  int
 	prefix string
 	values []interface{}
+	format Format
 }
 
 func (l klogger) clone() klogger {
@@ -34,6 +69,7 @@ func (l klogger) clone() klogger {
 		level:  l.level,
 		prefix: l.prefix,
 		values: copySlice(l.values),
+		format: l.format,
 	}
 }
 
@@ -149,11 +185,20 @@ func pretty(value interface{}) string {
 
 func (l klogger) Info(msg string, kvList ...interface{}) {
 	if l.Enabled() {
-		msgStr := flatten("msg", msg)
-		trimmed := trimDuplicates(l.values, kvList)
-		fixedStr := flatten(trimmed[0]...)
-		userStr := flatten(trimmed[1]...)
-		klog.InfoDepth(framesToCaller(), l.prefix, " ", msgStr, " ", fixedStr, " ", userStr)
+		switch l.format {
+		case FormatSerialize:
+			msgStr := flatten("msg", msg)
+			trimmed := trimDuplicates(l.values, kvList)
+			fixedStr := flatten(trimmed[0]...)
+			userStr := flatten(trimmed[1]...)
+			klog.InfoDepth(framesToCaller(), l.prefix, " ", msgStr, " ", fixedStr, " ", userStr)
+		case FormatKlog:
+			trimmed := trimDuplicates(l.values, kvList)
+			if l.prefix != "" {
+				msg = l.prefix + ": " + msg
+			}
+			klog.InfoSDepth(framesToCaller(), msg, append(trimmed[0], trimmed[1]...)...)
+		}
 	}
 }
 
@@ -167,11 +212,20 @@ func (l klogger) Error(err error, msg string, kvList ...interface{}) {
 	if err != nil {
 		loggableErr = err.Error()
 	}
-	errStr := flatten("error", loggableErr)
-	trimmed := trimDuplicates(l.values, kvList)
-	fixedStr := flatten(trimmed[0]...)
-	userStr := flatten(trimmed[1]...)
-	klog.ErrorDepth(framesToCaller(), l.prefix, " ", msgStr, " ", errStr, " ", fixedStr, " ", userStr)
+	switch l.format {
+	case FormatSerialize:
+		errStr := flatten("error", loggableErr)
+		trimmed := trimDuplicates(l.values, kvList)
+		fixedStr := flatten(trimmed[0]...)
+		userStr := flatten(trimmed[1]...)
+		klog.ErrorDepth(framesToCaller(), l.prefix, " ", msgStr, " ", errStr, " ", fixedStr, " ", userStr)
+	case FormatKlog:
+		trimmed := trimDuplicates(l.values, kvList)
+		if l.prefix != "" {
+			msg = l.prefix + ": " + msg
+		}
+		klog.ErrorSDepth(framesToCaller(), err, msg, append(trimmed[0], trimmed[1]...)...)
+	}
 }
 
 func (l klogger) V(level int) logr.Logger {
