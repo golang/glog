@@ -13,18 +13,20 @@ import (
 	"github.com/go-logr/logr"
 )
 
-func TestInfo(t *testing.T) {
+func TestOutput(t *testing.T) {
 	klog.InitFlags(nil)
 	flag.CommandLine.Set("v", "10")
 	flag.CommandLine.Set("skip_headers", "true")
 	flag.CommandLine.Set("logtostderr", "false")
 	flag.CommandLine.Set("alsologtostderr", "false")
+	flag.CommandLine.Set("stderrthreshold", "10")
 	flag.Parse()
 
 	tests := map[string]struct {
 		klogr          logr.Logger
 		text           string
 		keysAndValues  []interface{}
+		err            error
 		expectedOutput string
 	}{
 		"should log with values passed to keysAndValues": {
@@ -32,6 +34,20 @@ func TestInfo(t *testing.T) {
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue"},
 			expectedOutput: ` "msg"="test"  "akey"="avalue"
+`,
+		},
+		"should log with name and values passed to keysAndValues": {
+			klogr:         New().V(0).WithName("me"),
+			text:          "test",
+			keysAndValues: []interface{}{"akey", "avalue"},
+			expectedOutput: `me "msg"="test"  "akey"="avalue"
+`,
+		},
+		"should log with multiple names and values passed to keysAndValues": {
+			klogr:         New().V(0).WithName("hello").WithName("world"),
+			text:          "test",
+			keysAndValues: []interface{}{"akey", "avalue"},
+			expectedOutput: `hello/world "msg"="test"  "akey"="avalue"
 `,
 		},
 		"should not print duplicate keys with the same value": {
@@ -53,6 +69,13 @@ func TestInfo(t *testing.T) {
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue"},
 			expectedOutput: ` "msg"="test"  "akey"="avalue"
+`,
+		},
+		"should sort within logger and parameter key/value pairs and dump the logger pairs first": {
+			klogr:         New().WithValues("akey9", "avalue9", "akey8", "avalue8", "akey1", "avalue1"),
+			text:          "test",
+			keysAndValues: []interface{}{"akey5", "avalue5", "akey4", "avalue4"},
+			expectedOutput: ` "msg"="test" "akey1"="avalue1" "akey8"="avalue8" "akey9"="avalue9" "akey4"="avalue4" "akey5"="avalue5"
 `,
 		},
 		"should only print the key passed to Info when one is already set on the logger": {
@@ -95,6 +118,16 @@ func TestInfo(t *testing.T) {
 			expectedOutput: ` "msg"="test"  "err"="WHOOPS"
 `,
 		},
+		"should correctly print regular error types when using logr.Error": {
+			klogr: New().V(0),
+			text:  "test",
+			err:   errors.New("whoops"),
+			// The message is printed to three different log files (info, warning, error), so we see it three times in our output buffer.
+			expectedOutput: ` "msg"="test" "error"="whoops"  
+ "msg"="test" "error"="whoops"  
+ "msg"="test" "error"="whoops"  
+`,
+		},
 	}
 	for n, test := range tests {
 		t.Run(n, func(t *testing.T) {
@@ -107,7 +140,12 @@ func TestInfo(t *testing.T) {
 			tmpWriteBuffer := bytes.NewBuffer(nil)
 			klog.SetOutput(tmpWriteBuffer)
 
-			klogr.Info(test.text, test.keysAndValues...)
+			if test.err != nil {
+				klogr.Error(test.err, test.text, test.keysAndValues...)
+			} else {
+				klogr.Info(test.text, test.keysAndValues...)
+			}
+
 			// call Flush to ensure the text isn't still buffered
 			klog.Flush()
 
