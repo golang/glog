@@ -39,7 +39,7 @@ jobs:
         with:
           go-version: 1.13.x
       - name: Add GOBIN to PATH
-        run: echo "::add-path::$(go env GOPATH)/bin"
+        run: echo "PATH=$(go env GOPATH)/bin:$PATH" >>$GITHUB_ENV
       - name: Install dependencies
         run: GO111MODULE=off go get golang.org/x/exp/cmd/apidiff
       - name: Checkout old code
