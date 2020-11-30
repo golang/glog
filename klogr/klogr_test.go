@@ -15,12 +15,19 @@ import (
 
 const (
 	formatDefault = "Default"
+	formatNew     = "New"
 )
 
 func testOutput(t *testing.T, format string) {
-	var options []Option
-	if format != formatDefault {
-		options = append(options, WithFormat(Format(format)))
+	new := func() logr.Logger {
+		switch format {
+		case formatNew:
+			return New()
+		case formatDefault:
+			return NewWithOptions()
+		default:
+			return NewWithOptions(WithFormat(Format(format)))
+		}
 	}
 	tests := map[string]struct {
 		klogr              logr.Logger
@@ -31,7 +38,7 @@ func testOutput(t *testing.T, format string) {
 		expectedKlogOutput string
 	}{
 		"should log with values passed to keysAndValues": {
-			klogr:         New(options...).V(0),
+			klogr:         new().V(0),
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue"},
 			expectedOutput: ` "msg"="test"  "akey"="avalue"
@@ -40,7 +47,7 @@ func testOutput(t *testing.T, format string) {
 `,
 		},
 		"should log with name and values passed to keysAndValues": {
-			klogr:         New(options...).V(0).WithName("me"),
+			klogr:         new().V(0).WithName("me"),
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue"},
 			expectedOutput: `me "msg"="test"  "akey"="avalue"
@@ -49,7 +56,7 @@ func testOutput(t *testing.T, format string) {
 `,
 		},
 		"should log with multiple names and values passed to keysAndValues": {
-			klogr:         New(options...).V(0).WithName("hello").WithName("world"),
+			klogr:         new().V(0).WithName("hello").WithName("world"),
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue"},
 			expectedOutput: `hello/world "msg"="test"  "akey"="avalue"
@@ -58,7 +65,7 @@ func testOutput(t *testing.T, format string) {
 `,
 		},
 		"should not print duplicate keys with the same value": {
-			klogr:         New(options...).V(0),
+			klogr:         new().V(0),
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue", "akey", "avalue"},
 			expectedOutput: ` "msg"="test"  "akey"="avalue"
@@ -67,7 +74,7 @@ func testOutput(t *testing.T, format string) {
 `,
 		},
 		"should only print the last duplicate key when the values are passed to Info": {
-			klogr:         New(options...).V(0),
+			klogr:         new().V(0),
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue", "akey", "avalue2"},
 			expectedOutput: ` "msg"="test"  "akey"="avalue2"
@@ -76,7 +83,7 @@ func testOutput(t *testing.T, format string) {
 `,
 		},
 		"should only print the duplicate key that is passed to Info if one was passed to the logger": {
-			klogr:         New(options...).WithValues("akey", "avalue"),
+			klogr:         new().WithValues("akey", "avalue"),
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue"},
 			expectedOutput: ` "msg"="test"  "akey"="avalue"
@@ -85,7 +92,7 @@ func testOutput(t *testing.T, format string) {
 `,
 		},
 		"should sort within logger and parameter key/value pairs in the default format and dump the logger pairs first": {
-			klogr:         New(options...).WithValues("akey9", "avalue9", "akey8", "avalue8", "akey1", "avalue1"),
+			klogr:         new().WithValues("akey9", "avalue9", "akey8", "avalue8", "akey1", "avalue1"),
 			text:          "test",
 			keysAndValues: []interface{}{"akey5", "avalue5", "akey4", "avalue4"},
 			expectedOutput: ` "msg"="test" "akey1"="avalue1" "akey8"="avalue8" "akey9"="avalue9" "akey4"="avalue4" "akey5"="avalue5"
@@ -94,7 +101,7 @@ func testOutput(t *testing.T, format string) {
 `,
 		},
 		"should only print the key passed to Info when one is already set on the logger": {
-			klogr:         New(options...).WithValues("akey", "avalue"),
+			klogr:         new().WithValues("akey", "avalue"),
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue2"},
 			expectedOutput: ` "msg"="test"  "akey"="avalue2"
@@ -119,7 +126,7 @@ func testOutput(t *testing.T, format string) {
 `,
 		},
 		"should correctly handle odd-numbers of KVs in both log values and Info args": {
-			klogr:         New(options...).WithValues("basekey1", "basevar1", "basekey2"),
+			klogr:         new().WithValues("basekey1", "basevar1", "basekey2"),
 			text:          "test",
 			keysAndValues: []interface{}{"akey", "avalue", "akey2"},
 			expectedOutput: ` "msg"="test" "basekey1"="basevar1" "basekey2"=null "akey"="avalue" "akey2"=null
@@ -128,7 +135,7 @@ func testOutput(t *testing.T, format string) {
 `,
 		},
 		"should correctly print regular error types": {
-			klogr:         New(options...).V(0),
+			klogr:         new().V(0),
 			text:          "test",
 			keysAndValues: []interface{}{"err", errors.New("whoops")},
 			expectedOutput: ` "msg"="test"  "err"="whoops"
@@ -137,7 +144,7 @@ func testOutput(t *testing.T, format string) {
 `,
 		},
 		"should use MarshalJSON in the default format if an error type implements it": {
-			klogr:         New(options...).V(0),
+			klogr:         new().V(0),
 			text:          "test",
 			keysAndValues: []interface{}{"err", &customErrorJSON{"whoops"}},
 			expectedOutput: ` "msg"="test"  "err"="WHOOPS"
@@ -146,7 +153,7 @@ func testOutput(t *testing.T, format string) {
 `,
 		},
 		"should correctly print regular error types when using logr.Error": {
-			klogr: New(options...).V(0),
+			klogr: new().V(0),
 			text:  "test",
 			err:   errors.New("whoops"),
 			// The message is printed to three different log files (info, warning, error), so we see it three times in our output buffer.
@@ -164,7 +171,7 @@ func testOutput(t *testing.T, format string) {
 		t.Run(n, func(t *testing.T) {
 			klogr := test.klogr
 			if klogr == nil {
-				klogr = New(options...)
+				klogr = new()
 			}
 
 			// hijack the klog output
@@ -182,7 +189,7 @@ func testOutput(t *testing.T, format string) {
 
 			actual := tmpWriteBuffer.String()
 			expectedOutput := test.expectedOutput
-			if format == string(FormatKlog) {
+			if format == string(FormatKlog) || format == formatDefault {
 				expectedOutput = test.expectedKlogOutput
 			}
 			if actual != expectedOutput {
@@ -202,6 +209,7 @@ func TestOutput(t *testing.T) {
 	flag.Parse()
 
 	formats := []string{
+		formatNew,
 		formatDefault,
 		string(FormatSerialize),
 		string(FormatKlog),

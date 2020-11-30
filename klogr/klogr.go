@@ -31,25 +31,28 @@ const (
 	FormatKlog Format = "Klog"
 )
 
-// WithFormat selects the output format. Default is FormatSerialize as in
-// previous releases of klog.
+// WithFormat selects the output format.
 func WithFormat(format Format) Option {
 	return func(l *klogger) {
 		l.format = format
 	}
 }
 
-// New returns a logr.Logger which is implemented by klog.
-//
-// Whether it serializes key/value pairs itself (the traditional
-// behavior, enabled by default) or lets klog do that is configurable
-// via the Format option.
-func New(options ...Option) logr.Logger {
+// New returns a logr.Logger which serializes output itself
+// and writes it via klog.
+func New() logr.Logger {
+	return NewWithOptions(WithFormat(FormatSerialize))
+}
+
+// NewWithOptions returns a logr.Logger which serializes as determined
+// by the WithFormat option and writes via klog. The default is
+// FormatKlog.
+func NewWithOptions(options ...Option) logr.Logger {
 	l := klogger{
 		level:  0,
 		prefix: "",
 		values: nil,
-		format: FormatSerialize,
+		format: FormatKlog,
 	}
 	for _, option := range options {
 		option(&l)
