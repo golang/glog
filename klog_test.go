@@ -822,7 +822,7 @@ func TestKRef(t *testing.T) {
 	}
 }
 
-// Test that InfoS works as advertised.
+// Test that InfoS and InfoSDepth work as advertised.
 func TestInfoS(t *testing.T) {
 	setFlags()
 	defer logging.swap(logging.newBuffers())
@@ -857,17 +857,23 @@ func TestInfoS(t *testing.T) {
 		},
 	}
 
-	for _, data := range testDataInfo {
-		logging.file[infoLog] = &flushBuffer{}
-		InfoS(data.msg, data.keysValues...)
-		var line int
-		n, err := fmt.Sscanf(contents(infoLog), data.format, &line)
-		if n != 1 || err != nil {
-			t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(infoLog))
-		}
-		want := fmt.Sprintf(data.format, line)
-		if contents(infoLog) != want {
-			t.Errorf("InfoS has wrong format: \n got:\t%s\nwant:\t%s", contents(infoLog), want)
+	functions := []func(msg string, keyAndValues ...interface{}){
+		InfoS,
+		myInfoS,
+	}
+	for _, f := range functions {
+		for _, data := range testDataInfo {
+			logging.file[infoLog] = &flushBuffer{}
+			f(data.msg, data.keysValues...)
+			var line int
+			n, err := fmt.Sscanf(contents(infoLog), data.format, &line)
+			if n != 1 || err != nil {
+				t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(infoLog))
+			}
+			want := fmt.Sprintf(data.format, line)
+			if contents(infoLog) != want {
+				t.Errorf("InfoS has wrong format: \n got:\t%s\nwant:\t%s", contents(infoLog), want)
+			}
 		}
 	}
 }
@@ -930,7 +936,7 @@ func TestVInfoS(t *testing.T) {
 	}
 }
 
-// Test that ErrorS works as advertised.
+// Test that ErrorS and ErrorSDepth work as advertised.
 func TestErrorS(t *testing.T) {
 	setFlags()
 	defer logging.swap(logging.newBuffers())
@@ -939,16 +945,24 @@ func TestErrorS(t *testing.T) {
 	}
 	logging.logFile = ""
 	pid = 1234
-	ErrorS(fmt.Errorf("update status failed"), "Failed to update pod status", "pod", "kubedns")
-	var line int
-	format := "E0102 15:04:05.067890    1234 klog_test.go:%d] \"Failed to update pod status\" err=\"update status failed\" pod=\"kubedns\"\n"
-	n, err := fmt.Sscanf(contents(errorLog), format, &line)
-	if n != 1 || err != nil {
-		t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(errorLog))
+
+	functions := []func(err error, msg string, keyAndValues ...interface{}){
+		ErrorS,
+		myErrorS,
 	}
-	want := fmt.Sprintf(format, line)
-	if contents(errorLog) != want {
-		t.Errorf("ErrorS has wrong format: \n got:\t%s\nwant:\t%s", contents(errorLog), want)
+	for _, f := range functions {
+		logging.file[errorLog] = &flushBuffer{}
+		f(fmt.Errorf("update status failed"), "Failed to update pod status", "pod", "kubedns")
+		var line int
+		format := "E0102 15:04:05.067890    1234 klog_test.go:%d] \"Failed to update pod status\" err=\"update status failed\" pod=\"kubedns\"\n"
+		n, err := fmt.Sscanf(contents(errorLog), format, &line)
+		if n != 1 || err != nil {
+			t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(errorLog))
+		}
+		want := fmt.Sprintf(format, line)
+		if contents(errorLog) != want {
+			t.Errorf("ErrorS has wrong format: \n got:\t%s\nwant:\t%s", contents(errorLog), want)
+		}
 	}
 }
 
