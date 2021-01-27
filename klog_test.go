@@ -518,6 +518,7 @@ func TestOpenAppendOnStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	defer os.Remove(f.Name())
 	logging.logFile = f.Name()
 
 	// Erase files created by prior tests,
