@@ -729,7 +729,7 @@ func (l *loggingT) output(s severity, buf *buffer, file string, line int, alsoTo
 		}
 		l.mu.Unlock()
 		timeoutFlush(10 * time.Second)
-		os.Exit(255) // C++ uses -1, which is silly because it's anded with 255 anyway.
+		os.Exit(255) // C++ uses -1, which is silly because it's ended with 255 anyway.
 	}
 	l.putBuffer(buf)
 	l.mu.Unlock()
