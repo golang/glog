@@ -1447,6 +1447,167 @@ func TestErrorSWithLogr(t *testing.T) {
 	}
 }
 
+func TestCallDepthLogr(t *testing.T) {
+	logger := &callDepthTestLogr{}
+	logger.resetCallDepth()
+
+	testCases := []struct {
+		name  string
+		logFn func()
+	}{
+		{
+			name:  "Info log",
+			logFn: func() { Info("info log") },
+		},
+		{
+			name:  "InfoDepth log",
+			logFn: func() { InfoDepth(0, "infodepth log") },
+		},
+		{
+			name:  "InfoSDepth log",
+			logFn: func() { InfoSDepth(0, "infoSDepth log") },
+		},
+		{
+			name:  "Warning log",
+			logFn: func() { Warning("warning log") },
+		},
+		{
+			name:  "WarningDepth log",
+			logFn: func() { WarningDepth(0, "warningdepth log") },
+		},
+		{
+			name:  "Error log",
+			logFn: func() { Error("error log") },
+		},
+		{
+			name:  "ErrorDepth log",
+			logFn: func() { ErrorDepth(0, "errordepth log") },
+		},
+		{
+			name:  "ErrorSDepth log",
+			logFn: func() { ErrorSDepth(0, errors.New("some error"), "errorSDepth log") },
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			SetLogger(logger)
+			defer SetLogger(nil)
+			defer logger.reset()
+			defer logger.resetCallDepth()
+
+			// Keep these lines together.
+			_, wantFile, wantLine, _ := runtime.Caller(0)
+			tc.logFn()
+			wantLine++
+
+			if len(logger.entries) != 1 {
+				t.Errorf("expected a single log entry to be generated, got %d", len(logger.entries))
+			}
+			checkLogrEntryCorrectCaller(t, wantFile, wantLine, logger.entries[0])
+		})
+	}
+}
+
+func TestCallDepthLogrInfoS(t *testing.T) {
+	logger := &callDepthTestLogr{}
+	logger.resetCallDepth()
+	SetLogger(logger)
+
+	// Add wrapper to ensure callDepthTestLogr +2 offset is correct.
+	logFunc := func() {
+		InfoS("infoS log")
+	}
+
+	// Keep these lines together.
+	_, wantFile, wantLine, _ := runtime.Caller(0)
+	logFunc()
+	wantLine++
+
+	if len(logger.entries) != 1 {
+		t.Errorf("expected a single log entry to be generated, got %d", len(logger.entries))
+	}
+	checkLogrEntryCorrectCaller(t, wantFile, wantLine, logger.entries[0])
+}
+
+func TestCallDepthLogrErrorS(t *testing.T) {
+	logger := &callDepthTestLogr{}
+	logger.resetCallDepth()
+	SetLogger(logger)
+
+	// Add wrapper to ensure callDepthTestLogr +2 offset is correct.
+	logFunc := func() {
+		ErrorS(errors.New("some error"), "errorS log")
+	}
+
+	// Keep these lines together.
+	_, wantFile, wantLine, _ := runtime.Caller(0)
+	logFunc()
+	wantLine++
+
+	if len(logger.entries) != 1 {
+		t.Errorf("expected a single log entry to be generated, got %d", len(logger.entries))
+	}
+	checkLogrEntryCorrectCaller(t, wantFile, wantLine, logger.entries[0])
+}
+
+func TestCallDepthLogrGoLog(t *testing.T) {
+	logger := &callDepthTestLogr{}
+	logger.resetCallDepth()
+	SetLogger(logger)
+	CopyStandardLogTo("INFO")
+
+	// Add wrapper to ensure callDepthTestLogr +2 offset is correct.
+	logFunc := func() {
+		stdLog.Print("some log")
+	}
+
+	// Keep these lines together.
+	_, wantFile, wantLine, _ := runtime.Caller(0)
+	logFunc()
+	wantLine++
+
+	if len(logger.entries) != 1 {
+		t.Errorf("expected a single log entry to be generated, got %d", len(logger.entries))
+	}
+	checkLogrEntryCorrectCaller(t, wantFile, wantLine, logger.entries[0])
+	fmt.Println(logger.entries[0])
+}
+
+// Test callDepthTestLogr logs the expected offsets.
+func TestCallDepthTestLogr(t *testing.T) {
+	logger := &callDepthTestLogr{}
+	logger.resetCallDepth()
+
+	logFunc := func() {
+		logger.Info("some info log")
+	}
+	// Keep these lines together.
+	_, wantFile, wantLine, _ := runtime.Caller(0)
+	logFunc()
+	wantLine++
+
+	if len(logger.entries) != 1 {
+		t.Errorf("expected a single log entry to be generated, got %d", len(logger.entries))
+	}
+	checkLogrEntryCorrectCaller(t, wantFile, wantLine, logger.entries[0])
+
+	logger.reset()
+
+	logFunc = func() {
+		logger.Error(errors.New("error"), "some error log")
+	}
+	// Keep these lines together.
+	_, wantFile, wantLine, _ = runtime.Caller(0)
+	logFunc()
+	wantLine++
+
+	if len(logger.entries) != 1 {
+		t.Errorf("expected a single log entry to be generated, got %d", len(logger.entries))
+	}
+	checkLogrEntryCorrectCaller(t, wantFile, wantLine, logger.entries[0])
+}
+
 type testLogr struct {
 	entries []testLogrEntry
 	mutex   sync.Mutex
@@ -1491,6 +1652,66 @@ func (l *testLogr) V(int) logr.Logger           { panic("not implemented") }
 func (l *testLogr) WithName(string) logr.Logger { panic("not implemented") }
 func (l *testLogr) WithValues(...interface{}) logr.Logger {
 	panic("not implemented")
+}
+
+type callDepthTestLogr struct {
+	testLogr
+	callDepth int
+}
+
+func (l *callDepthTestLogr) resetCallDepth() {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	l.callDepth = 0
+}
+
+func (l *callDepthTestLogr) WithCallDepth(depth int) logr.Logger {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	// Note: Usually WithCallDepth would be implemented by cloning l
+	// and setting the call depth on the clone. We modify l instead in
+	// this test helper for simplicity.
+	l.callDepth = depth
+	return l
+}
+
+func (l *callDepthTestLogr) Info(msg string, keysAndValues ...interface{}) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	// Add 2 to depth for the wrapper function caller and for invocation in
+	// test case.
+	_, file, line, _ := runtime.Caller(l.callDepth + 2)
+	l.entries = append(l.entries, testLogrEntry{
+		severity:      infoLog,
+		msg:           msg,
+		keysAndValues: append([]interface{}{file, line}, keysAndValues...),
+	})
+}
+
+func (l *callDepthTestLogr) Error(err error, msg string, keysAndValues ...interface{}) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	// Add 2 to depth for the wrapper function caller and for invocation in
+	// test case.
+	_, file, line, _ := runtime.Caller(l.callDepth + 2)
+	l.entries = append(l.entries, testLogrEntry{
+		severity:      errorLog,
+		msg:           msg,
+		keysAndValues: append([]interface{}{file, line}, keysAndValues...),
+		err:           err,
+	})
+}
+
+func checkLogrEntryCorrectCaller(t *testing.T, wantFile string, wantLine int, entry testLogrEntry) {
+	t.Helper()
+
+	want := fmt.Sprintf("%s:%d", wantFile, wantLine)
+	// Log fields contain file and line number as first elements.
+	got := fmt.Sprintf("%s:%d", entry.keysAndValues[0], entry.keysAndValues[1])
+
+	if want != got {
+		t.Errorf("expected file and line %q but got %q", want, got)
+	}
 }
 
 // existedFlag contains all existed flag, without KlogPrefix
