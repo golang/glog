@@ -780,7 +780,7 @@ func (l *loggingT) errorS(err error, loggr logr.Logger, filter LogFilter, depth 
 		loggr.Error(err, msg, keysAndValues...)
 		return
 	}
-	l.printS(err, depth+1, msg, keysAndValues...)
+	l.printS(err, errorLog, depth+1, msg, keysAndValues...)
 }
 
 // if loggr is specified, will call loggr.Info, otherwise output with logging module.
@@ -792,12 +792,12 @@ func (l *loggingT) infoS(loggr logr.Logger, filter LogFilter, depth int, msg str
 		loggr.Info(msg, keysAndValues...)
 		return
 	}
-	l.printS(nil, depth+1, msg, keysAndValues...)
+	l.printS(nil, infoLog, depth+1, msg, keysAndValues...)
 }
 
 // printS is called from infoS and errorS if loggr is not specified.
-// if err arguments is specified, will output to errorLog severity
-func (l *loggingT) printS(err error, depth int, msg string, keysAndValues ...interface{}) {
+// set log severity by s
+func (l *loggingT) printS(err error, s severity, depth int, msg string, keysAndValues ...interface{}) {
 	b := &bytes.Buffer{}
 	b.WriteString(fmt.Sprintf("%q", msg))
 	if err != nil {
@@ -805,12 +805,6 @@ func (l *loggingT) printS(err error, depth int, msg string, keysAndValues ...int
 		b.WriteString(fmt.Sprintf("err=%q", err.Error()))
 	}
 	kvListFormat(b, keysAndValues...)
-	var s severity
-	if err == nil {
-		s = infoLog
-	} else {
-		s = errorLog
-	}
 	l.printDepth(s, logging.logr, nil, depth+1, b)
 }
 
