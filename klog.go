@@ -81,6 +81,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -1578,6 +1579,9 @@ type KMetadata interface {
 // KObj returns ObjectRef from ObjectMeta
 func KObj(obj KMetadata) ObjectRef {
 	if obj == nil {
+		return ObjectRef{}
+	}
+	if val := reflect.ValueOf(obj); val.Kind() == reflect.Ptr && val.IsNil() {
 		return ObjectRef{}
 	}
 
