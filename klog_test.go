@@ -621,6 +621,26 @@ func BenchmarkHeaderWithDir(b *testing.B) {
 	}
 }
 
+// Ensure that benchmarks have side effects to avoid compiler optimization
+var result ObjectRef
+
+func BenchmarkKRef(b *testing.B) {
+	var r ObjectRef
+	for i := 0; i < b.N; i++ {
+		r = KRef("namespace", "name")
+	}
+	result = r
+}
+
+func BenchmarkKObj(b *testing.B) {
+	a := kMetadataMock{name: "a", ns: "a"}
+	var r ObjectRef
+	for i := 0; i < b.N; i++ {
+		r = KObj(&a)
+	}
+	result = r
+}
+
 func BenchmarkLogs(b *testing.B) {
 	setFlags()
 	defer logging.swap(logging.newBuffers())
@@ -734,6 +754,11 @@ func TestInfoObjectRef(t *testing.T) {
 			},
 			want: "test-name",
 		},
+		{
+			name: "empty",
+			ref:  ObjectRef{},
+			want: "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -746,14 +771,25 @@ func TestInfoObjectRef(t *testing.T) {
 	}
 }
 
-type mockKmeta struct {
+type kMetadataMock struct {
 	name, ns string
 }
 
-func (m mockKmeta) GetName() string {
+func (m kMetadataMock) GetName() string {
 	return m.name
 }
-func (m mockKmeta) GetNamespace() string {
+func (m kMetadataMock) GetNamespace() string {
+	return m.ns
+}
+
+type ptrKMetadataMock struct {
+	name, ns string
+}
+
+func (m *ptrKMetadataMock) GetName() string {
+	return m.name
+}
+func (m *ptrKMetadataMock) GetNamespace() string {
 	return m.ns
 }
 
@@ -764,13 +800,28 @@ func TestKObj(t *testing.T) {
 		want ObjectRef
 	}{
 		{
+			name: "nil passed as pointer KMetadata implementation",
+			obj:  (*ptrKMetadataMock)(nil),
+			want: ObjectRef{},
+		},
+		{
+			name: "empty struct passed as non-pointer KMetadata implementation",
+			obj:  kMetadataMock{},
+			want: ObjectRef{},
+		},
+		{
+			name: "nil pointer passed to non-pointer KMetadata implementation",
+			obj:  (*kMetadataMock)(nil),
+			want: ObjectRef{},
+		},
+		{
 			name: "nil",
 			obj:  nil,
 			want: ObjectRef{},
 		},
 		{
 			name: "with ns",
-			obj:  mockKmeta{"test-name", "test-ns"},
+			obj:  &kMetadataMock{"test-name", "test-ns"},
 			want: ObjectRef{
 				Name:      "test-name",
 				Namespace: "test-ns",
@@ -778,7 +829,7 @@ func TestKObj(t *testing.T) {
 		},
 		{
 			name: "without ns",
-			obj:  mockKmeta{"test-name", ""},
+			obj:  &kMetadataMock{"test-name", ""},
 			want: ObjectRef{
 				Name: "test-name",
 			},
@@ -1029,12 +1080,24 @@ func TestKvListFormat(t *testing.T) {
 			want:       " pod=\"kubedns\" status=\"ready\"",
 		},
 		{
-			keysValues: []interface{}{"pod", KObj(mockKmeta{"test-name", "test-ns"}), "status", "ready"},
+			keysValues: []interface{}{"pod", KObj(kMetadataMock{"test-name", "test-ns"}), "status", "ready"},
 			want:       " pod=\"test-ns/test-name\" status=\"ready\"",
 		},
 		{
-			keysValues: []interface{}{"pod", KObj(mockKmeta{"test-name", ""}), "status", "ready"},
+			keysValues: []interface{}{"pod", KObj(kMetadataMock{"test-name", ""}), "status", "ready"},
 			want:       " pod=\"test-name\" status=\"ready\"",
+		},
+		{
+			keysValues: []interface{}{"pod", KObj(nil), "status", "ready"},
+			want:       " pod=\"\" status=\"ready\"",
+		},
+		{
+			keysValues: []interface{}{"pod", KObj((*ptrKMetadataMock)(nil)), "status", "ready"},
+			want:       " pod=\"\" status=\"ready\"",
+		},
+		{
+			keysValues: []interface{}{"pod", KObj((*kMetadataMock)(nil)), "status", "ready"},
+			want:       " pod=\"\" status=\"ready\"",
 		},
 	}
 
