@@ -1577,6 +1577,10 @@ type KMetadata interface {
 
 // KObj returns ObjectRef from ObjectMeta
 func KObj(obj KMetadata) ObjectRef {
+	if obj == nil {
+		return ObjectRef{}
+	}
+
 	return ObjectRef{
 		Name:      obj.GetName(),
 		Namespace: obj.GetNamespace(),

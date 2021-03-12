@@ -764,6 +764,11 @@ func TestKObj(t *testing.T) {
 		want ObjectRef
 	}{
 		{
+			name: "nil",
+			obj:  nil,
+			want: ObjectRef{},
+		},
+		{
 			name: "with ns",
 			obj:  mockKmeta{"test-name", "test-ns"},
 			want: ObjectRef{
