@@ -39,6 +39,7 @@ func printUnstructuredLog() {
 	klog.Fatalf("test log")          // want `unstructured logging function "Fatalf" should not be used`
 	klog.Fatalln("test log")         // want `unstructured logging function "Fatalln" should not be used`
 	klog.FatalDepth(1, "test log")   // want `unstructured logging function "FatalDepth" should not be used`
+
 }
 
 func printStructuredLog() {
@@ -53,4 +54,6 @@ func printStructuredLog() {
 	klog.InfoS("Starting container in a pod", map[string]string{"test1": "value"}, "containerID") // want `Key positional arguments are expected to be inlined constant strings. `
 	testKey := "a"
 	klog.ErrorS(nil, "Starting container in a pod", testKey, "containerID") // want `Key positional arguments are expected to be inlined constant strings. `
+	klog.InfoS("test: %s", "testname")                                      // want `structured logging function "InfoS" should not use format specifier "%s"`
+	klog.ErrorS(nil, "test no.: %d", 1)                                     // want `structured logging function "ErrorS" should not use format specifier "%d"`
 }
