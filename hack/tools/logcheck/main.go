@@ -19,7 +19,9 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 
+	"golang.org/x/exp/utf8string"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/singlechecker"
 )
@@ -48,7 +50,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			// passing all function calls to checkForFunctionExpr
 			if fexpr, ok := n.(*ast.CallExpr); ok {
 
-				checkForFunctionExpr(fexpr.Fun, pass)
+				checkForFunctionExpr(fexpr.Fun, fexpr.Args, pass)
 			}
 
 			return true
@@ -58,7 +60,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 // checkForFunctionExpr checks for unstructured logging function, prints error if found any.
-func checkForFunctionExpr(fun ast.Expr, pass *analysis.Pass) {
+func checkForFunctionExpr(fun ast.Expr, args []ast.Expr, pass *analysis.Pass) {
 
 	/* we are extracting external package function calls e.g. klog.Infof fmt.Printf
 	   and eliminating calls like setLocalHost()
@@ -80,6 +82,13 @@ func checkForFunctionExpr(fun ast.Expr, pass *analysis.Pass) {
 		// extracting package name
 		pName, ok := selExpr.X.(*ast.Ident)
 
+		if ok && pName.Name == "klog" && !isUnstructured((fName)) {
+			if fName == "InfoS" {
+				isKeysValid(args[1:], fun, pass, fName)
+			} else if fName == "ErrorS" {
+				isKeysValid(args[2:], fun, pass, fName)
+			}
+		}
 		// Matching if package name is klog and any unstructured logging function is used.
 		if ok && pName.Name == "klog" && isUnstructured((fName)) {
 
@@ -109,4 +118,41 @@ func isUnstructured(fName string) bool {
 	}
 
 	return false
+}
+
+// isKeysValid check if all keys in keyAndValues is string type
+func isKeysValid(keyValues []ast.Expr, fun ast.Expr, pass *analysis.Pass, funName string) {
+	if len(keyValues)%2 != 0 {
+		pass.Report(analysis.Diagnostic{
+			Pos:     fun.Pos(),
+			Message: fmt.Sprintf("Invalid Number of arguments for %s", funName),
+		})
+	}
+
+	for index, arg := range keyValues {
+		if index%2 != 0 {
+			continue
+		}
+		if lit, ok := arg.(*ast.BasicLit); ok {
+			if lit.Kind != token.STRING {
+				pass.Report(analysis.Diagnostic{
+					Pos:     fun.Pos(),
+					Message: fmt.Sprintf("Invalid value type for key %v", lit.Value),
+				})
+				continue
+			}
+			isASCII := utf8string.NewString(lit.Value).IsASCII()
+			if !isASCII {
+				pass.Report(analysis.Diagnostic{
+					Pos:     fun.Pos(),
+					Message: fmt.Sprintf("Invalid value for key %v, it's must be ascii", lit.Value),
+				})
+			}
+		} else {
+			pass.Report(analysis.Diagnostic{
+				Pos:     fun.Pos(),
+				Message: "Invalid value type for key",
+			})
+		}
+	}
 }

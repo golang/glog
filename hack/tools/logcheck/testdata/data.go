@@ -44,4 +44,10 @@ func printUnstructuredLog() {
 func printStructuredLog() {
 	klog.InfoS("test log")
 	klog.ErrorS(nil, "test log")
+	klog.InfoS("Starting container in a pod", "containerID", "containerID", "pod")       // want `Invalid Number of arguments for InfoS`
+	klog.ErrorS(nil, "Starting container in a pod", "containerID", "containerID", "pod") // want `Invalid Number of arguments for ErrorS`
+	klog.InfoS("Starting container in a pod", "测试", "containerID")                       // want `Invalid value for key`
+	klog.ErrorS(nil, "Starting container in a pod", "测试", "containerID")                 // want `Invalid value for key`
+	klog.InfoS("Starting container in a pod", 7, "containerID")                          // want `Invalid value type for key 7`
+	klog.ErrorS(nil, "Starting container in a pod", 7, "containerID")                    // want `Invalid value type for key 7`
 }
