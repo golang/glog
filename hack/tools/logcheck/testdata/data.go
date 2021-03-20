@@ -44,4 +44,13 @@ func printUnstructuredLog() {
 func printStructuredLog() {
 	klog.InfoS("test log")
 	klog.ErrorS(nil, "test log")
+	klog.InfoS("Starting container in a pod", "containerID", "containerID", "pod")                // want `Additional arguments to InfoS should always be Key Value pairs. Please check if there is any key or value missing.`
+	klog.ErrorS(nil, "Starting container in a pod", "containerID", "containerID", "pod")          // want `Additional arguments to ErrorS should always be Key Value pairs. Please check if there is any key or value missing.`
+	klog.InfoS("Starting container in a pod", "测试", "containerID")                                // want `Key positional arguments "测试" are expected to be lowerCamelCase alphanumeric strings. Please remove any non-Latin characters.`
+	klog.ErrorS(nil, "Starting container in a pod", "测试", "containerID")                          // want `Key positional arguments "测试" are expected to be lowerCamelCase alphanumeric strings. Please remove any non-Latin characters.`
+	klog.InfoS("Starting container in a pod", 7, "containerID")                                   // want `Key positional arguments are expected to be inlined constant strings. Please replace 7 provided with string value`
+	klog.ErrorS(nil, "Starting container in a pod", 7, "containerID")                             // want `Key positional arguments are expected to be inlined constant strings. Please replace 7 provided with string value`
+	klog.InfoS("Starting container in a pod", map[string]string{"test1": "value"}, "containerID") // want `Key positional arguments are expected to be inlined constant strings. `
+	testKey := "a"
+	klog.ErrorS(nil, "Starting container in a pod", testKey, "containerID") // want `Key positional arguments are expected to be inlined constant strings. `
 }

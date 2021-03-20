@@ -19,7 +19,9 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 
+	"golang.org/x/exp/utf8string"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/singlechecker"
 )
@@ -48,7 +50,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			// passing all function calls to checkForFunctionExpr
 			if fexpr, ok := n.(*ast.CallExpr); ok {
 
-				checkForFunctionExpr(fexpr.Fun, pass)
+				checkForFunctionExpr(fexpr.Fun, fexpr.Args, pass)
 			}
 
 			return true
@@ -58,7 +60,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 // checkForFunctionExpr checks for unstructured logging function, prints error if found any.
-func checkForFunctionExpr(fun ast.Expr, pass *analysis.Pass) {
+func checkForFunctionExpr(fun ast.Expr, args []ast.Expr, pass *analysis.Pass) {
 
 	/* we are extracting external package function calls e.g. klog.Infof fmt.Printf
 	   and eliminating calls like setLocalHost()
@@ -80,14 +82,22 @@ func checkForFunctionExpr(fun ast.Expr, pass *analysis.Pass) {
 		// extracting package name
 		pName, ok := selExpr.X.(*ast.Ident)
 
-		// Matching if package name is klog and any unstructured logging function is used.
-		if ok && pName.Name == "klog" && isUnstructured((fName)) {
+		if ok && pName.Name == "klog" {
+			// Matching if any unstructured logging function is used.
+			if !isUnstructured((fName)) {
+				if fName == "InfoS" {
+					isKeysValid(args[1:], fun, pass, fName)
+				} else if fName == "ErrorS" {
+					isKeysValid(args[2:], fun, pass, fName)
+				}
+			} else {
+				msg := fmt.Sprintf("unstructured logging function %q should not be used", fName)
+				pass.Report(analysis.Diagnostic{
+					Pos:     fun.Pos(),
+					Message: msg,
+				})
+			}
 
-			msg := fmt.Sprintf("unstructured logging function %q should not be used", fName)
-			pass.Report(analysis.Diagnostic{
-				Pos:     fun.Pos(),
-				Message: msg,
-			})
 		}
 	}
 }
@@ -109,4 +119,43 @@ func isUnstructured(fName string) bool {
 	}
 
 	return false
+}
+
+// isKeysValid check if all keys in keyAndValues is string type
+func isKeysValid(keyValues []ast.Expr, fun ast.Expr, pass *analysis.Pass, funName string) {
+	if len(keyValues)%2 != 0 {
+		pass.Report(analysis.Diagnostic{
+			Pos:     fun.Pos(),
+			Message: fmt.Sprintf("Additional arguments to %s should always be Key Value pairs. Please check if there is any key or value missing.", funName),
+		})
+		return
+	}
+
+	for index, arg := range keyValues {
+		if index%2 != 0 {
+			continue
+		}
+		lit, ok := arg.(*ast.BasicLit)
+		if !ok {
+			pass.Report(analysis.Diagnostic{
+				Pos:     fun.Pos(),
+				Message: fmt.Sprintf("Key positional arguments are expected to be inlined constant strings. Please replace %v provided with string value", arg),
+			})
+			continue
+		}
+		if lit.Kind != token.STRING {
+			pass.Report(analysis.Diagnostic{
+				Pos:     fun.Pos(),
+				Message: fmt.Sprintf("Key positional arguments are expected to be inlined constant strings. Please replace %v provided with string value", lit.Value),
+			})
+			continue
+		}
+		isASCII := utf8string.NewString(lit.Value).IsASCII()
+		if !isASCII {
+			pass.Report(analysis.Diagnostic{
+				Pos:     fun.Pos(),
+				Message: fmt.Sprintf("Key positional arguments %s are expected to be lowerCamelCase alphanumeric strings. Please remove any non-Latin characters.", lit.Value),
+			})
+		}
+	}
 }
