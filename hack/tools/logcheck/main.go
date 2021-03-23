@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strings"
 
 	"golang.org/x/exp/utf8string"
 	"golang.org/x/tools/go/analysis"
@@ -49,8 +50,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			// We are intrested in function calls, as we want to detect klog.* calls
 			// passing all function calls to checkForFunctionExpr
 			if fexpr, ok := n.(*ast.CallExpr); ok {
-
-				checkForFunctionExpr(fexpr.Fun, fexpr.Args, pass)
+				checkForFunctionExpr(fexpr, pass)
 			}
 
 			return true
@@ -60,7 +60,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 // checkForFunctionExpr checks for unstructured logging function, prints error if found any.
-func checkForFunctionExpr(fun ast.Expr, args []ast.Expr, pass *analysis.Pass) {
+func checkForFunctionExpr(fexpr *ast.CallExpr, pass *analysis.Pass) {
+
+	fun := fexpr.Fun
+	args := fexpr.Args
 
 	/* we are extracting external package function calls e.g. klog.Infof fmt.Printf
 	   and eliminating calls like setLocalHost()
@@ -85,6 +88,11 @@ func checkForFunctionExpr(fun ast.Expr, args []ast.Expr, pass *analysis.Pass) {
 		if ok && pName.Name == "klog" {
 			// Matching if any unstructured logging function is used.
 			if !isUnstructured((fName)) {
+				// if format specifier is used, check for arg length will most probably fail
+				// so check for format specifier first and skip if found
+				if checkForFormatSpecifier(fexpr, pass) {
+					return
+				}
 				if fName == "InfoS" {
 					isKeysValid(args[1:], fun, pass, fName)
 				} else if fName == "ErrorS" {
@@ -97,7 +105,6 @@ func checkForFunctionExpr(fun ast.Expr, args []ast.Expr, pass *analysis.Pass) {
 					Message: msg,
 				})
 			}
-
 		}
 	}
 }
@@ -158,4 +165,38 @@ func isKeysValid(keyValues []ast.Expr, fun ast.Expr, pass *analysis.Pass, funNam
 			})
 		}
 	}
+}
+
+func checkForFormatSpecifier(expr *ast.CallExpr, pass *analysis.Pass) bool {
+	if selExpr, ok := expr.Fun.(*ast.SelectorExpr); ok {
+		// extracting function Name like Infof
+		fName := selExpr.Sel.Name
+		if specifier, found := hasFormatSpecifier(expr.Args); found {
+			msg := fmt.Sprintf("structured logging function %q should not use format specifier %q", fName, specifier)
+			pass.Report(analysis.Diagnostic{
+				Pos:     expr.Fun.Pos(),
+				Message: msg,
+			})
+			return true
+		}
+	}
+	return false
+}
+
+func hasFormatSpecifier(fArgs []ast.Expr) (string, bool) {
+	formatSpecifiers := []string{
+		"%v", "%+v", "%#v", "%T",
+		"%t", "%b", "%c", "%d", "%o", "%O", "%q", "%x", "%X", "%U",
+		"%e", "%E", "%f", "%F", "%g", "%G", "%s", "%q", "%p",
+	}
+	for _, fArg := range fArgs {
+		if arg, ok := fArg.(*ast.BasicLit); ok {
+			for _, specifier := range formatSpecifiers {
+				if strings.Contains(arg.Value, specifier) {
+					return specifier, true
+				}
+			}
+		}
+	}
+	return "", false
 }
