@@ -861,6 +861,9 @@ func (rb *redirectBuffer) Write(bytes []byte) (n int, err error) {
 //   ...
 //   klog.SetLogger(zapr.NewLogger(zapLog))
 func SetLogger(logr logr.Logger) {
+	logging.mu.Lock()
+	defer logging.mu.Unlock()
+
 	logging.logr = logr
 }
 
