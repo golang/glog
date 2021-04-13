@@ -22,7 +22,6 @@ func createLogDirs() {
 	if logDir != "" {
 		logDirs = append(logDirs, logDir)
 	}
-	logDirs = append(logDirs, os.TempDir())
 }
 
 var (
@@ -80,12 +79,17 @@ var onceLogDirs sync.Once
 // contains tag ("INFO", "FATAL", etc.) and t.  If the file is created
 // successfully, create also attempts to update the symlink for that tag, ignoring
 // errors.
+// If logDirs is empty, return /dev/null file instead.
 func create(tag string, t time.Time) (f *os.File, filename string, err error) {
 	onceLogDirs.Do(createLogDirs)
-	if len(logDirs) == 0 {
-		return nil, "", errors.New("log: no log dirs")
-	}
 	name, link := logName(tag, t)
+	if len(logDirs) == 0 {
+		devnull, err := os.OpenFile(os.DevNull, os.O_RDWR, os.ModePerm)
+		if err != nil {
+			return nil, "", errors.New("log: open /dev/null failed")
+		}
+		return devnull, name, nil
+	}
 	var lastErr error
 	for _, dir := range logDirs {
 		fname := filepath.Join(dir, name)
