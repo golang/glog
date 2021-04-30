@@ -838,6 +838,9 @@ func (sb *syncBuffer) rotateFile(now time.Time) error {
 		return err
 	}
 
+	// delete old log file
+	delete(severityName[sb.sev])
+
 	sb.Writer = bufio.NewWriterSize(sb.file, bufferSize)
 
 	// Write header.
@@ -867,6 +870,7 @@ func (l *loggingT) createFiles(sev severity) error {
 			logger: l,
 			sev:    s,
 		}
+		logrotate()
 		if err := sb.rotateFile(now); err != nil {
 			return err
 		}
@@ -879,7 +883,7 @@ const flushInterval = 30 * time.Second
 
 // flushDaemon periodically flushes the log file buffers.
 func (l *loggingT) flushDaemon() {
-	for _ = range time.NewTicker(flushInterval).C {
+	for range time.NewTicker(flushInterval).C {
 		l.lockAndFlushAll()
 	}
 }
