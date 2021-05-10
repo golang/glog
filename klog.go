@@ -825,6 +825,8 @@ func kvListFormat(b *bytes.Buffer, keysAndValues ...interface{}) {
 		switch v.(type) {
 		case string, error:
 			b.WriteString(fmt.Sprintf("%s=%q", k, v))
+		case []byte:
+			b.WriteString(fmt.Sprintf("%s=%+q", k, v))
 		default:
 			if _, ok := v.(fmt.Stringer); ok {
 				b.WriteString(fmt.Sprintf("%s=%q", k, v))
