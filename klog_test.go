@@ -1068,6 +1068,14 @@ func TestKvListFormat(t *testing.T) {
 			want:       " pod=\"kubedns\" values=[deployment svc configmap]",
 		},
 		{
+			keysValues: []interface{}{"pod", "kubedns", "bytes", []byte("test case for byte array")},
+			want:       " pod=\"kubedns\" bytes=\"test case for byte array\"",
+		},
+		{
+			keysValues: []interface{}{"pod", "kubedns", "bytes", []byte("��=� ⌘")},
+			want:       " pod=\"kubedns\" bytes=\"\\ufffd\\ufffd=\\ufffd \\u2318\"",
+		},
+		{
 			keysValues: []interface{}{"pod", "kubedns", "maps", map[string]int{"three": 4}},
 			want:       " pod=\"kubedns\" maps=map[three:4]",
 		},
