@@ -284,6 +284,7 @@ func (m *moduleSpec) Get() interface{} {
 
 var errVmoduleSyntax = errors.New("syntax error: expect comma-separated list of filename=N")
 
+// Set will sets module value
 // Syntax: -vmodule=recordio=2,file=1,gfs*=3
 func (m *moduleSpec) Set(value string) error {
 	var filter []modulePat
@@ -362,6 +363,7 @@ func (t *traceLocation) Get() interface{} {
 
 var errTraceSyntax = errors.New("syntax error: expect file.go:234")
 
+// Set will sets backtrace value
 // Syntax: -log_backtrace_at=gopherflakes.go:234
 // Note that unlike vmodule the file extension is included here.
 func (t *traceLocation) Set(value string) error {
