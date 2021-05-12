@@ -647,7 +647,7 @@ func BenchmarkLogs(b *testing.B) {
 
 	testFile, err := ioutil.TempFile("", "test.log")
 	if err != nil {
-		b.Error("unable to create temporary file")
+		b.Fatal("unable to create temporary file")
 	}
 	defer os.Remove(testFile.Name())
 
