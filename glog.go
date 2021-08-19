@@ -16,7 +16,7 @@
 
 // Package glog implements logging analogous to the Google-internal C++ INFO/ERROR/V setup.
 // It provides functions Info, Warning, Error, Fatal, plus formatting variants such as
-// Infof. It also provides V-style logging controlled by the -v and -vmodule=file=2 flags.
+// Infof. It also provides V-style logging controlled by the -vlevel and -vmodule=file=2 flags.
 //
 // Basic examples:
 //
@@ -59,7 +59,7 @@
 //		a stack trace will be written to the Info log whenever execution
 //		hits that statement. (Unlike with -vmodule, the ".go" must be
 //		present.)
-//	-v=0
+//	-vlevel=0
 //		Enable V-leveled logging at the specified level.
 //	-vmodule=""
 //		The syntax of the argument is a comma-separated list of pattern=N,
@@ -193,13 +193,13 @@ var severityStats = [numSeverity]*OutputStats{
 // the type of the v flag, which can be set programmatically.
 // It's a distinct type because we want to discriminate it from logType.
 // Variables of type level are only changed under logging.mu.
-// The -v flag is read only with atomic ops, so the state of the logging
+// The -vlevel flag is read only with atomic ops, so the state of the logging
 // module is consistent.
 
 // Level is treated as a sync/atomic int32.
 
 // Level specifies a level of verbosity for V logs. *Level implements
-// flag.Value; the -v flag is of type Level and should be modified
+// flag.Value; the -vlevel flag is of type Level and should be modified
 // only through the flag.Value interface.
 type Level int32
 
@@ -398,7 +398,7 @@ type flushSyncWriter interface {
 func init() {
 	flag.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
-	flag.Var(&logging.verbosity, "v", "log level for V logs")
+	flag.Var(&logging.verbosity, "vlevel", "log level for V logs")
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
 	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
@@ -452,7 +452,7 @@ type loggingT struct {
 	// These flags are modified only under lock, although verbosity may be fetched
 	// safely using atomic.LoadInt32.
 	vmodule   moduleSpec // The state of the -vmodule flag.
-	verbosity Level      // V logging level, the value of the -v flag/
+	verbosity Level      // V logging level, the value of the -vlevel flag/
 }
 
 // buffer holds a byte Buffer for reuse. The zero value is ready for use.
@@ -993,8 +993,8 @@ type Verbose bool
 // not evaluate its arguments.
 //
 // Whether an individual call to V generates a log record depends on the setting of
-// the -v and --vmodule flags; both are off by default. If the level in the call to
-// V is at least the value of -v, or of -vmodule for the source file containing the
+// the -vlevel and --vmodule flags; both are off by default. If the level in the call to
+// V is at least the value of -vlevel, or of -vmodule for the source file containing the
 // call, the V call will log.
 func V(level Level) Verbose {
 	// This function tries hard to be cheap unless there's work to do.

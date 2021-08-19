@@ -12,7 +12,7 @@ control over logging at the file level.
 
 The comment from `glog.go` introduces the ideas:
 
-Package _glog_ implements logging analogous to the Google-internal C++ INFO/ERROR/V setup.  It provides the functions Info, Warning, Error, Fatal, plus formatting variants such as Infof. It also provides V-style loggingcontrolled by the `-v` and `-vmodule=file=2` flags.
+Package _glog_ implements logging analogous to the Google-internal C++ INFO/ERROR/V setup.  It provides the functions Info, Warning, Error, Fatal, plus formatting variants such as Infof. It also provides V-style loggingcontrolled by the `-vlevel` and `-vmodule=file=2` flags.
 	
 Basic examples:
 
