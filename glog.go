@@ -994,7 +994,7 @@ type Verbose bool
 //
 // Whether an individual call to V generates a log record depends on the setting of
 // the -v and --vmodule flags; both are off by default. If the level in the call to
-// V is at least the value of -v, or of -vmodule for the source file containing the
+// V is at most the value of -v, or of -vmodule for the source file containing the
 // call, the V call will log.
 func V(level Level) Verbose {
 	// This function tries hard to be cheap unless there's work to do.
