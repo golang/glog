@@ -395,13 +395,25 @@ type flushSyncWriter interface {
 	io.Writer
 }
 
+// Allow the user to set this variable at build-time, to prefix our flags'
+// names with something of their choice.
+var FlagPrefix string
+
+func prefix(s string) string {
+	if FlagPrefix != "" {
+		return FlagPrefix + s
+	}
+
+	return s
+}
+
 func init() {
-	flag.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
-	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
-	flag.Var(&logging.verbosity, "v", "log level for V logs")
-	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
-	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
-	flag.Var(&logging.traceLocation, "log_backtrace_at", "when logging hits line file:N, emit a stack trace")
+	flag.BoolVar(&logging.toStderr, prefix("logtostderr"), false, "log to standard error instead of files")
+	flag.BoolVar(&logging.alsoToStderr, prefix("alsologtostderr"), false, "log to standard error as well as files")
+	flag.Var(&logging.verbosity, prefix("v"), "log level for V logs")
+	flag.Var(&logging.stderrThreshold, prefix("stderrthreshold"), "logs at or above this threshold go to stderr")
+	flag.Var(&logging.vmodule, prefix("vmodule"), "comma-separated list of pattern=N settings for file-filtered logging")
+	flag.Var(&logging.traceLocation, prefix("log_backtrace_at"), "when logging hits line file:N, emit a stack trace")
 
 	// Default stderrThreshold is ERROR.
 	logging.stderrThreshold = errorLog
