@@ -455,9 +455,6 @@ type loggingT struct {
 	// safely using atomic.LoadInt32.
 	vmodule   moduleSpec // The state of the -vmodule flag.
 	verbosity Level      // V logging level, the value of the -v flag/
-
-	// Flag for including year in the header
-	includeYear bool
 }
 
 // buffer holds a byte Buffer for reuse. The zero value is ready for use.
