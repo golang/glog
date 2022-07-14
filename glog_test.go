@@ -193,6 +193,30 @@ func TestHeader(t *testing.T) {
 	}
 }
 
+// Test that the header has the correct format.
+func TestHeader_PrintsLogMessageWithYear(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+	defer func(previous func() time.Time) { timeNow = previous }(timeNow)
+	timeNow = func() time.Time {
+		return time.Date(2006, 1, 2, 15, 4, 5, .067890e9, time.Local)
+	}
+	pid = 1234
+	Info("test")
+	var line int
+	format := "I20060102 15:04:05.067890    1234 glog_test.go:%d] test\n"
+	n, err := fmt.Sscanf(contents(infoLog), format, &line)
+	if n != 1 || err != nil {
+		t.Errorf("log format error: %d elements, error %s:\n%s", n, err, contents(infoLog))
+	}
+	// Scanf treats multiple spaces as equivalent to a single space,
+	// so check for correct space-padding also.
+	want := fmt.Sprintf(format, line)
+	if contents(infoLog) != want {
+		t.Errorf("log format error: got:\n\t%q\nwant:\t%q", contents(infoLog), want)
+	}
+}
+
 // Test that an Error log goes to Warning and Info.
 // Even in the Info log, the source character will be E, so the data should
 // all be identical.
