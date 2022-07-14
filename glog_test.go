@@ -202,6 +202,7 @@ func TestHeader_PrintsLogMessageWithYear(t *testing.T) {
 		return time.Date(2006, 1, 2, 15, 4, 5, .067890e9, time.Local)
 	}
 	pid = 1234
+	IncludeYear = true
 	Info("test")
 	var line int
 	format := "I20060102 15:04:05.067890    1234 glog_test.go:%d] test\n"
