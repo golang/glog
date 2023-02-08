@@ -1033,6 +1033,14 @@ func (v Verbose) Info(args ...interface{}) {
 	}
 }
 
+// InfoDepth is equivalent to the global InfoDepth function, guarded by the value of v.
+// See the documentation of V for usage.
+func (v Verbose) InfoDepth(depth int, args ...interface{}) {
+	if v {
+		logging.printDepth(infoLog, depth, args...)
+	}
+}
+
 // Infoln is equivalent to the global Infoln function, guarded by the value of v.
 // See the documentation of V for usage.
 func (v Verbose) Infoln(args ...interface{}) {
