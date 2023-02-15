@@ -60,9 +60,15 @@ func init() {
 		host = shortHostname(h)
 	}
 
-	current, err := user.Current()
-	if err == nil {
-		userName = current.Username
+	// NetApi32.dll does not exists in Nano Server
+	// https://github.com/golang/go/issues/21867
+	if _, err := os.Stat(os.Getenv("windir") + `\System32\netapi32.dll`); errors.Is(err, os.ErrNotExist) {
+		userName = os.Getenv("USERDOMAIN") + `\` + os.Getenv("USERNAME")
+	} else {
+		current, err := user.Current()
+		if err == nil {
+			userName = current.Username
+		}
 	}
 
 	// Sanitize userName since it may contain filepath separators on Windows.
