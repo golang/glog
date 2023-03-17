@@ -192,9 +192,7 @@ func (f *verboseFlags) levelForPC(pc uintptr) Level {
 	file, _ := fn.FileLine(pc)
 	// The file is something like /a/b/c/d.go. We want just the d for
 	// regular matches, /a/b/c/d for full matches.
-	if strings.HasSuffix(file, ".go") {
-		file = file[:len(file)-3]
-	}
+	file = strings.TrimSuffix(file, ".go")
 	full := file
 	if slash := strings.LastIndex(file, "/"); slash >= 0 {
 		file = file[slash+1:]
