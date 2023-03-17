@@ -133,6 +133,11 @@ func (l *Level) Set(value string) error {
 type vModuleFlag struct{ *verboseFlags }
 
 func (f vModuleFlag) String() string {
+	// Do not panic on the zero value.
+	// https://groups.google.com/g/golang-nuts/c/Atlr8uAjn6U/m/iId17Td5BQAJ.
+	if f.verboseFlags == nil {
+		return ""
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
