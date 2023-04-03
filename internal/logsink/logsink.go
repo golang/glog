@@ -195,6 +195,9 @@ func textPrintf(m *Meta, textSinks []Text, format string, args ...any) (n int, e
 		buf.Reset()
 	}
 
+	// new format: 2023-04-03 16:51:32.290
+	// old format: E0201 18:52:45.560942
+
 	// Lmmdd hh:mm:ss.uuuuuu PID/GID file:line]
 	//
 	// The "PID" entry arguably ought to be TID for consistency with other
@@ -203,21 +206,26 @@ func textPrintf(m *Meta, textSinks []Text, format string, args ...any) (n int, e
 	//
 	// Avoid Fprintf, for speed. The format is so simple that we can do it quickly by hand.
 	// It's worth about 3X. Fprintf is hard.
-	const severityChar = "IWEF"
-	buf.WriteByte(severityChar[m.Severity])
+	//const severityChar = "IWEF"
+	//buf.WriteByte(severityChar[m.Severity])
 
-	_, month, day := m.Time.Date()
+	year, month, day := m.Time.Date()
 	hour, minute, second := m.Time.Clock()
+
+	nDigits(buf, 4, uint64(year), '0')
+	buf.WriteByte('-')
 	twoDigits(buf, int(month))
+	buf.WriteByte('-')
 	twoDigits(buf, day)
 	buf.WriteByte(' ')
+
 	twoDigits(buf, hour)
 	buf.WriteByte(':')
 	twoDigits(buf, minute)
 	buf.WriteByte(':')
 	twoDigits(buf, second)
 	buf.WriteByte('.')
-	nDigits(buf, 6, uint64(m.Time.Nanosecond()/1000), '0')
+	nDigits(buf, 3, uint64(m.Time.Nanosecond()/1000), '0')
 	buf.WriteByte(' ')
 
 	nDigits(buf, 7, uint64(m.Thread), ' ')
