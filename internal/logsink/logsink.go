@@ -225,7 +225,7 @@ func textPrintf(m *Meta, textSinks []Text, format string, args ...any) (n int, e
 	buf.WriteByte(':')
 	twoDigits(buf, second)
 	buf.WriteByte('.')
-	nDigits(buf, 3, uint64(m.Time.Nanosecond()/1000), '0')
+	nDigits(buf, 3, uint64(m.Time.Nanosecond()/1000000), '0')
 	buf.WriteByte(' ')
 
 	nDigits(buf, 7, uint64(m.Thread), ' ')
