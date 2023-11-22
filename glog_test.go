@@ -2,6 +2,7 @@ package glog
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -36,6 +37,7 @@ type flushBuffer struct {
 }
 
 func (f *flushBuffer) Flush() error {
+	f.Buffer.Reset()
 	return nil
 }
 
@@ -63,6 +65,16 @@ func (s *fileSink) newBuffers() severityWriters {
 	return s.swap(severityWriters{new(flushBuffer), new(flushBuffer), new(flushBuffer), new(flushBuffer)})
 }
 
+func (s *fileSink) resetBuffers() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, buf := range s.file {
+		if buf != nil {
+			buf.Flush()
+		}
+	}
+}
+
 // contents returns the specified log value as a string.
 func contents(s logsink.Severity) string {
 	return sinks.file.file[s].(*flushBuffer).String()
@@ -82,12 +94,20 @@ func setFlags() {
 func TestInfo(t *testing.T) {
 	setFlags()
 	defer sinks.file.swap(sinks.file.newBuffers())
-	Info("test")
-	if !contains(logsink.Info, "I", t) {
-		t.Errorf("Info has wrong character: %q", contents(logsink.Info))
+	funcs := []func(args ...any){
+		Info,
+		func(args ...any) { InfoContext(context.Background(), args) },
 	}
-	if !contains(logsink.Info, "test", t) {
-		t.Error("Info failed")
+
+	for _, f := range funcs {
+		sinks.file.resetBuffers()
+		f("test")
+		if !contains(logsink.Info, "I", t) {
+			t.Errorf("Info has wrong character: %q", contents(logsink.Info))
+		}
+		if !contains(logsink.Info, "test", t) {
+			t.Error("Info failed")
+		}
 	}
 }
 
@@ -95,42 +115,50 @@ func TestInfoDepth(t *testing.T) {
 	setFlags()
 	defer sinks.file.swap(sinks.file.newBuffers())
 
-	f := func() { InfoDepth(1, "depth-test1") }
-
-	// The next three lines must stay together
-	_, _, wantLine, _ := runtime.Caller(0)
-	InfoDepth(0, "depth-test0")
-	f()
-
-	msgs := strings.Split(strings.TrimSuffix(contents(logsink.Info), "\n"), "\n")
-	if len(msgs) != 2 {
-		t.Fatalf("Got %d lines, expected 2", len(msgs))
+	funcs := []func(d int, args ...any){
+		InfoDepth,
+		func(d int, args ...any) { InfoContextDepth(context.Background(), d+1, args) },
 	}
 
-	for i, m := range msgs {
-		if !strings.HasPrefix(m, "I") {
-			t.Errorf("InfoDepth[%d] has wrong character: %q", i, m)
-		}
-		w := fmt.Sprintf("depth-test%d", i)
-		if !strings.Contains(m, w) {
-			t.Errorf("InfoDepth[%d] missing %q: %q", i, w, m)
+	for _, infoDepth := range funcs {
+		sinks.file.resetBuffers()
+		f := func() { infoDepth(1, "depth-test1") }
+
+		// The next three lines must stay together
+		_, _, wantLine, _ := runtime.Caller(0)
+		infoDepth(0, "depth-test0")
+		f()
+
+		msgs := strings.Split(strings.TrimSuffix(contents(logsink.Info), "\n"), "\n")
+		if len(msgs) != 2 {
+			t.Fatalf("Got %d lines, expected 2", len(msgs))
 		}
 
-		// pull out the line number (between : and ])
-		msg := m[strings.LastIndex(m, ":")+1:]
-		x := strings.Index(msg, "]")
-		if x < 0 {
-			t.Errorf("InfoDepth[%d]: missing ']': %q", i, m)
-			continue
-		}
-		line, err := strconv.Atoi(msg[:x])
-		if err != nil {
-			t.Errorf("InfoDepth[%d]: bad line number: %q", i, m)
-			continue
-		}
-		wantLine++
-		if wantLine != line {
-			t.Errorf("InfoDepth[%d]: got line %d, want %d", i, line, wantLine)
+		for i, m := range msgs {
+			if !strings.HasPrefix(m, "I") {
+				t.Errorf("InfoDepth[%d] has wrong character: %q", i, m)
+			}
+			w := fmt.Sprintf("depth-test%d", i)
+			if !strings.Contains(m, w) {
+				t.Errorf("InfoDepth[%d] missing %q: %q", i, w, m)
+			}
+
+			// pull out the line number (between : and ])
+			msg := m[strings.LastIndex(m, ":")+1:]
+			x := strings.Index(msg, "]")
+			if x < 0 {
+				t.Errorf("InfoDepth[%d]: missing ']': %q", i, m)
+				continue
+			}
+			line, err := strconv.Atoi(msg[:x])
+			if err != nil {
+				t.Errorf("InfoDepth[%d]: bad line number: %q", i, m)
+				continue
+			}
+			wantLine++
+			if wantLine != line {
+				t.Errorf("InfoDepth[%d]: got line %d, want %d", i, line, wantLine)
+			}
 		}
 	}
 }
@@ -204,19 +232,28 @@ func TestHeader(t *testing.T) {
 func TestError(t *testing.T) {
 	setFlags()
 	defer sinks.file.swap(sinks.file.newBuffers())
-	Error("test")
-	if !contains(logsink.Error, "E", t) {
-		t.Errorf("Error has wrong character: %q", contents(logsink.Error))
+
+	funcs := []func(args ...any){
+		Error,
+		func(args ...any) { ErrorContext(context.Background(), args) },
 	}
-	if !contains(logsink.Error, "test", t) {
-		t.Error("Error failed")
-	}
-	str := contents(logsink.Error)
-	if !contains(logsink.Warning, str, t) {
-		t.Error("Warning failed")
-	}
-	if !contains(logsink.Info, str, t) {
-		t.Error("Info failed")
+
+	for _, error := range funcs {
+		sinks.file.resetBuffers()
+		error("test")
+		if !contains(logsink.Error, "E", t) {
+			t.Errorf("Error has wrong character: %q", contents(logsink.Error))
+		}
+		if !contains(logsink.Error, "test", t) {
+			t.Error("Error failed")
+		}
+		str := contents(logsink.Error)
+		if !contains(logsink.Warning, str, t) {
+			t.Error("Warning failed")
+		}
+		if !contains(logsink.Info, str, t) {
+			t.Error("Info failed")
+		}
 	}
 }
 
@@ -226,16 +263,25 @@ func TestError(t *testing.T) {
 func TestWarning(t *testing.T) {
 	setFlags()
 	defer sinks.file.swap(sinks.file.newBuffers())
-	Warning("test")
-	if !contains(logsink.Warning, "W", t) {
-		t.Errorf("Warning has wrong character: %q", contents(logsink.Warning))
+
+	funcs := []func(args ...any){
+		Warning,
+		func(args ...any) { WarningContext(context.Background(), args) },
 	}
-	if !contains(logsink.Warning, "test", t) {
-		t.Error("Warning failed")
-	}
-	str := contents(logsink.Warning)
-	if !contains(logsink.Info, str, t) {
-		t.Error("Info failed")
+
+	for _, warning := range funcs {
+		sinks.file.resetBuffers()
+		warning("test")
+		if !contains(logsink.Warning, "W", t) {
+			t.Errorf("Warning has wrong character: %q", contents(logsink.Warning))
+		}
+		if !contains(logsink.Warning, "test", t) {
+			t.Error("Warning failed")
+		}
+		str := contents(logsink.Warning)
+		if !contains(logsink.Info, str, t) {
+			t.Error("Info failed")
+		}
 	}
 }
 
@@ -248,12 +294,19 @@ func TestV(t *testing.T) {
 	}
 	defer flag.Lookup("v").Value.Set("0")
 
-	V(2).Info("test")
-	if !contains(logsink.Info, "I", t) {
-		t.Errorf("Info has wrong character: %q", contents(logsink.Info))
+	funcs := []func(args ...any){
+		V(2).Info,
+		func(args ...any) { V(2).InfoContext(context.Background(), args) },
 	}
-	if !contains(logsink.Info, "test", t) {
-		t.Error("Info failed")
+	for _, info := range funcs {
+		sinks.file.resetBuffers()
+		info("test")
+		if !contains(logsink.Info, "I", t) {
+			t.Errorf("Info has wrong character: %q", contents(logsink.Info))
+		}
+		if !contains(logsink.Info, "test", t) {
+			t.Error("Info failed")
+		}
 	}
 }
 
