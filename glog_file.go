@@ -370,7 +370,6 @@ func (s *fileSink) Flush() error {
 // flush flushes all logs of severity threshold or greater.
 func (s *fileSink) flush(threshold logsink.Severity) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	var firstErr error
 	updateErr := func(err error) {
@@ -384,6 +383,15 @@ func (s *fileSink) flush(threshold logsink.Severity) error {
 		file := s.file[sev]
 		if file != nil {
 			updateErr(file.Flush())
+		}
+	}
+
+	s.mu.Unlock()
+
+	// Sync from fatal down, write file kernel buffer to disk
+	for sev := logsink.Fatal; sev >= threshold; sev-- {
+		file := s.file[sev]
+		if file != nil {
 			updateErr(file.Sync())
 		}
 	}
