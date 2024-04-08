@@ -2,7 +2,7 @@ package glog
 
 import (
 	"flag"
-	"io/ioutil"
+	"io"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -39,7 +39,7 @@ func (s *fileSink) newDiscarders() severityWriters {
 
 func discardStderr() func() {
 	se := sinks.stderr.w
-	sinks.stderr.w = ioutil.Discard
+	sinks.stderr.w = io.Discard
 	return func() { sinks.stderr.w = se }
 }
 
