@@ -248,6 +248,7 @@ type syncBuffer struct {
 	names  []string
 	sev    logsink.Severity
 	nbytes uint64 // The number of bytes written to this file
+	madeAt time.Time
 }
 
 func (sb *syncBuffer) Sync() error {
@@ -255,9 +256,14 @@ func (sb *syncBuffer) Sync() error {
 }
 
 func (sb *syncBuffer) Write(p []byte) (n int, err error) {
+	// Rotate the file if it is too large, but ensure we only do so,
+	// if rotate doesn't create a conflicting filename.
 	if sb.nbytes+uint64(len(p)) >= MaxSize {
-		if err := sb.rotateFile(time.Now()); err != nil {
-			return 0, err
+		now := timeNow()
+		if now.After(sb.madeAt.Add(1*time.Second)) || now.Second() != sb.madeAt.Second() {
+			if err := sb.rotateFile(now); err != nil {
+				return 0, err
+			}
 		}
 	}
 	n, err = sb.Writer.Write(p)
@@ -276,6 +282,7 @@ func (sb *syncBuffer) rotateFile(now time.Time) error {
 	var err error
 	pn := "<none>"
 	file, name, err := create(sb.sev.String(), now)
+	sb.madeAt = now
 
 	if sb.file != nil {
 		// The current log file becomes the previous log at the end of
