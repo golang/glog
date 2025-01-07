@@ -521,20 +521,23 @@ func logAtVariousLevels() {
 
 func TestRollover(t *testing.T) {
 	setFlags()
+	defer func(previous func() time.Time) { timeNow = previous }(timeNow)
+
+	// Initialize a fake clock that can be advanced with the tick func.
+	fakeNow := time.Date(2024, 12, 23, 1, 23, 45, 0, time.Local)
+	timeNow = func() time.Time {
+		return fakeNow
+	}
+
+	tick := func(d time.Duration) {
+		fakeNow = fakeNow.Add(d)
+	}
 
 	Info("x") // Be sure we have a file.
 	info, ok := sinks.file.file[logsink.Info].(*syncBuffer)
 	if !ok {
 		t.Fatal("info wasn't created")
 	}
-
-	// Make sure the next log file gets a file name with a different
-	// time stamp.
-	//
-	// TODO: determine whether we need to support subsecond log
-	// rotation.  C++ does not appear to handle this case (nor does it
-	// handle Daylight Savings Time properly).
-	time.Sleep(1 * time.Second)
 
 	// Measure the current size of the log file.
 	info.Flush()
@@ -550,7 +553,9 @@ func TestRollover(t *testing.T) {
 
 	fname0 := info.file.Name()
 
-	// Force a rotation.
+	// Advance clock by 1.5 seconds to force rotation by size.
+	// (The .5 will be important for the last test as well).
+	tick(1500 * time.Millisecond)
 	Info(longMessage)
 	Info(longMessage)
 	info.Flush()
@@ -610,14 +615,49 @@ func TestRollover(t *testing.T) {
 
 	// Make sure Names returned the right names.
 	n, err := Names("INFO")
-	if len(n) != 2 && err != nil && n[0] != fname0 && n[1] != fname1 {
+	if (len(n) != 2 || err != nil) && n[0] != fname0 && n[1] != fname1 {
 		t.Errorf("Names(INFO) wanted [%s, %s]/nil, got %v/%v", fname0, fname1, n, err)
 	}
 
-	if t.Failed() {
-		t.Logf("%v:\n%q", fname0, f0)
-		t.Logf("%v:\n%q", fname1, f1)
+	// The following tests assume that previous test left clock at .5 seconds.
+	if fakeNow.Nanosecond() != 5e8 {
+		t.Fatalf("BUG: fake clock should be exactly at .5 seconds")
 	}
+
+	// Same second would create conflicting filename, no rotation expected.
+	tick(499 * time.Millisecond)
+	Info(longMessage)
+	Info(longMessage)
+	n, err = Names("INFO")
+	if got, want := len(n), 2; got != want || err != nil {
+		t.Errorf("Names(INFO) = %v (len=%v), %v, want %d names: expected no rotation within same second", n, got, err, want)
+	}
+
+	// Trigger a subsecond rotation in next fakeClock second.
+	tick(1 * time.Millisecond)
+	Info(longMessage)
+	Info(longMessage)
+	n, err = Names("INFO")
+	if got, want := len(n), 3; got != want || err != nil {
+		t.Errorf("Names(INFO) = %v (len=%v), %v, want %d names: expected a rotation after under a second when filename does not conflict", n, got, err, want)
+	}
+
+	// Trigger a rotation within a minute since the last rotation.
+	tick(time.Minute)
+	Info(longMessage)
+	Info(longMessage)
+	n, err = Names("INFO")
+	if got, want := len(n), 4; got != want || err != nil {
+		t.Errorf("Names(INFO) = %v (len=%v), %v, want %d names: expected a rotation after one minute since last rotation", n, got, err, want)
+	}
+
+	if t.Failed() {
+		t.Logf("========================================================")
+		t.Logf("%s:\n%s", fname0, f0)
+		t.Logf("========================================================")
+		t.Logf("%s:\n%s", fname1, f1)
+	}
+
 }
 
 func TestLogBacktraceAt(t *testing.T) {
