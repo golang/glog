@@ -143,7 +143,12 @@ func create(tag string, t time.Time, dir string) (f *os.File, filename string, e
 func createInDir(dir, tag string, t time.Time) (f *os.File, name string, err error) {
 	name, link := logName(tag, t)
 	fname := filepath.Join(dir, name)
-	f, err = os.Create(fname)
+	// O_EXCL is important here, as it prevents a vulnerability. The general idea is that logs often
+	// live in an insecure directory (like /tmp), so an unprivileged attacker could create fname in
+	// advance as a symlink to a file the logging process can access, but the attacker cannot. O_EXCL
+	// fails the open if it already exists, thus prevent our this code from opening the existing file
+	// the attacker points us to.
+	f, err = os.OpenFile(fname, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
 	if err == nil {
 		symlink := filepath.Join(dir, link)
 		os.Remove(symlink)        // ignore err

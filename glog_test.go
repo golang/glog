@@ -772,3 +772,14 @@ func TestLogLength(t *testing.T) {
 			len(c), logsink.MaxLogMessageLen, c)
 	}
 }
+
+func TestCreateFailsIfExists(t *testing.T) {
+	tmp := t.TempDir()
+	now := time.Now()
+	if _, _, err := create("INFO", now, tmp); err != nil {
+		t.Errorf("create() failed on first call: %v", err)
+	}
+	if _, _, err := create("INFO", now, tmp); err == nil {
+		t.Errorf("create() succeeded on second call, want error")
+	}
+}
