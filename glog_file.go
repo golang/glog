@@ -116,30 +116,46 @@ var onceLogDirs sync.Once
 // contains tag ("INFO", "FATAL", etc.) and t.  If the file is created
 // successfully, create also attempts to update the symlink for that tag, ignoring
 // errors.
-func create(tag string, t time.Time) (f *os.File, filename string, err error) {
+func create(tag string, t time.Time, dir string) (f *os.File, filename string, err error) {
+	if dir != "" {
+		f, name, err := createInDir(dir, tag, t)
+		if err == nil {
+			return f, name, err
+		}
+		return nil, "", fmt.Errorf("log: cannot create log: %v", err)
+	}
+
 	onceLogDirs.Do(createLogDirs)
 	if len(logDirs) == 0 {
 		return nil, "", errors.New("log: no log dirs")
 	}
-	name, link := logName(tag, t)
 	var lastErr error
 	for _, dir := range logDirs {
-		fname := filepath.Join(dir, name)
-		f, err := os.Create(fname)
+		f, name, err := createInDir(dir, tag, t)
 		if err == nil {
-			symlink := filepath.Join(dir, link)
-			os.Remove(symlink)        // ignore err
-			os.Symlink(name, symlink) // ignore err
-			if *logLink != "" {
-				lsymlink := filepath.Join(*logLink, link)
-				os.Remove(lsymlink)         // ignore err
-				os.Symlink(fname, lsymlink) // ignore err
-			}
-			return f, fname, nil
+			return f, name, err
 		}
 		lastErr = err
 	}
 	return nil, "", fmt.Errorf("log: cannot create log: %v", lastErr)
+}
+
+func createInDir(dir, tag string, t time.Time) (f *os.File, name string, err error) {
+	name, link := logName(tag, t)
+	fname := filepath.Join(dir, name)
+	f, err = os.Create(fname)
+	if err == nil {
+		symlink := filepath.Join(dir, link)
+		os.Remove(symlink)        // ignore err
+		os.Symlink(name, symlink) // ignore err
+		if *logLink != "" {
+			lsymlink := filepath.Join(*logLink, link)
+			os.Remove(lsymlink)         // ignore err
+			os.Symlink(fname, lsymlink) // ignore err
+		}
+		return f, fname, nil
+	}
+	return nil, "", err
 }
 
 // flushSyncWriter is the interface satisfied by logging destinations.
@@ -281,7 +297,7 @@ const footer = "\nCONTINUED IN NEXT FILE\n"
 func (sb *syncBuffer) rotateFile(now time.Time) error {
 	var err error
 	pn := "<none>"
-	file, name, err := create(sb.sev.String(), now)
+	file, name, err := create(sb.sev.String(), now, "")
 	sb.madeAt = now
 
 	if sb.file != nil {
