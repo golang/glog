@@ -247,6 +247,7 @@ func sinkf(meta *logsink.Meta, format string, args ...any) {
 	}
 
 	if err != nil {
+		meta.Severity = logsinc.Fatal
 		logsink.Printf(meta, "glog: exiting because of error: %s", err)
 		sinks.file.Flush()
 		os.Exit(2)
