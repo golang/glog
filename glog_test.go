@@ -5,8 +5,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	stdLog "log"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -569,7 +569,7 @@ func TestRollover(t *testing.T) {
 	}
 
 	// Check to see if the original file has the continued footer.
-	f0, err := ioutil.ReadFile(fname0)
+	f0, err := os.ReadFile(fname0)
 	if err != nil {
 		t.Fatalf("Unable to read file %s: %v", fname0, err)
 	}
@@ -593,7 +593,7 @@ func TestRollover(t *testing.T) {
 	}
 
 	// Check to see if the previous file header is there in the new file
-	f1, err := ioutil.ReadFile(fname1)
+	f1, err := os.ReadFile(fname1)
 	if err != nil {
 		t.Fatalf("Unable to read file %s: %v", fname1, err)
 	}
