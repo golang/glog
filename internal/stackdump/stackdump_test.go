@@ -116,7 +116,7 @@ func TestCallerPC(t *testing.T) {
 		stack := pcAt(calls, tc.depth)
 		if tc.wantEndOfStack {
 			if len(stack) != 0 {
-				t.Errorf("for %v calls, stackdump.CallerPC(%v) =\n%q\nwant []", calls, tc.depth, stack)
+				t.Errorf("for %v calls, stackdump.CallerPC(%v) =\n%v\nwant []", calls, tc.depth, stack)
 			}
 			continue
 		}
